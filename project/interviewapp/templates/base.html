@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Mock Interview</title>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="{% url 'interviewapp:dashboard' %}">Dashboard</a>
+      {% if user.is_authenticated %}
+        <span> | {{ user.username }} </span>
+        <a href="{% url 'interviewapp:logout' %}">Logout</a>
+      {% else %}
+        <a href="{% url 'interviewapp:login' %}">Login</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <hr>
+
+  <!-- 🔥 Message Display (NEW section, required) -->
+  {% if messages %}
+    <ul style="list-style:none; padding:0;">
+      {% for message in messages %}
+        <li style="
+            margin: 10px 0; 
+            padding: 10px; 
+            border-radius: 5px;
+            {% if message.tags == 'error' %}
+                background: #ffdddd; color:#900;
+            {% elif message.tags == 'warning' %}
+                background: #fff4ce; color:#7a5c00;
+            {% elif message.tags == 'success' %}
+                background: #ddffdd; color:#006600;
+            {% else %}
+                background: #e7f0fd; color:#003366;
+            {% endif %}
+        ">
+          {{ message }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  <!-- 🔥 End of Message Display -->
+
+  <main>
+    {% block content %}
+    {% endblock %}
+  </main>
+</body>
+</html>

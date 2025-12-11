@@ -1,0 +1,4 @@
+Django==4.2
+spacy==3.6.0
+python-dotenv
+requests

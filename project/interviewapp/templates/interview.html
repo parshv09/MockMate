@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Question {{ session.current_index }}</h2>
+  <p><strong>{{ question.text }}</strong></p>
+  <form method="post" action="{% url 'interviewapp:submit_answer' session.id %}">{% csrf_token %}
+    <input type="hidden" name="answer_id" value="{{ answer_id }}">
+    {{ form.as_p }}
+    <button type="submit">Submit Answer</button>
+  </form>
+{% endblock %}

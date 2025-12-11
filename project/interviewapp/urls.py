@@ -1,0 +1,14 @@
+from django.urls import path
+from . import views
+
+app_name = 'interviewapp'
+
+urlpatterns = [
+    path('', views.dashboard, name='dashboard'),
+    path('accounts/login/', views.user_login, name='login'),
+    path('accounts/logout/', views.user_logout, name='logout'),
+    path('start/', views.start_session, name='start_session'),
+    path('session/<int:session_id>/next/', views.next_question, name='next_question'),
+    path('session/<int:session_id>/answer/', views.submit_answer, name='submit_answer'),
+    path('session/<int:session_id>/summary/', views.session_summary, name='session_summary'),
+]

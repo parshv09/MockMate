@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Session Summary ({{ session.id }})</h2>
+  <p>Role: {{ session.role }} | Started: {{ session.started_at }}</p>
+  <p>Average score: {{ avg }}</p>
+  <ol>
+    {% for a in answers %}
+      <li>
+        <strong>Q:</strong> {{ a.question.text }}<br>
+        <strong>Your answer:</strong> {{ a.answer_text }}<br>
+        <strong>Score:</strong> {{ a.score }}<br>
+        <strong>Feedback:</strong> {{ a.feedback }}
+      </li>
+    {% endfor %}
+  </ol>
+  <p><a href="{% url 'interviewapp:dashboard' %}">Back to dashboard</a></p>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Dashboard</h2>
+  <p><a href="{% url 'interviewapp:start_session' %}">Start a new interview</a></p>
+  <h3>Recent sessions</h3>
+  <ul>
+    {% for s in sessions %}
+      <li>
+        <a href="{% url 'interviewapp:next_question' s.id %}">Session {{ s.id }}</a> |
+        Role: {{ s.role }} |
+        Started: {{ s.started_at }} |
+        Score: {{ s.total_score }}
+      </li>
+    {% empty %}
+      <li>No sessions yet</li>
+    {% endfor %}
+  </ul>
+{% endblock %}
