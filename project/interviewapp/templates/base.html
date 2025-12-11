@@ -1,52 +1,191 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
 <head>
-    <meta charset="utf-8">
-    <title>Mock Interview</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI Mock Interview{% endblock %}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#EEF2FF',
+                            100: '#E0E7FF',
+                            500: '#4F46E5',
+                            600: '#4F46E5',
+                            700: '#4338CA',
+                            800: '#3730A3',
+                        },
+                        accent: {
+                            400: '#14B8A6',
+                            500: '#0D9488',
+                        }
+                    },
+                    animation: {
+                        'slide-up': 'slideUp 0.5s ease-out',
+                        'slide-down': 'slideDown 0.3s ease-out',
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                        'scale-in': 'scaleIn 0.3s ease-out',
+                        'pulse-subtle': 'pulseSubtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Heroicons -->
+    <script src="https://unpkg.com/heroicons@latest/24/outline/index.js"></script>
+    <script src="https://unpkg.com/heroicons@latest/24/solid/index.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+    
+    {% block extra_head %}{% endblock %}
 </head>
-<body>
-  <header>
-    <nav>
-      <a href="{% url 'interviewapp:dashboard' %}">Dashboard</a>
-      {% if user.is_authenticated %}
-        <span> | {{ user.username }} </span>
-        <a href="{% url 'interviewapp:logout' %}">Logout</a>
-      {% else %}
-        <a href="{% url 'interviewapp:login' %}">Login</a>
-      {% endif %}
-    </nav>
-  </header>
-
-  <hr>
-
-  <!-- 🔥 Message Display (NEW section, required) -->
-  {% if messages %}
-    <ul style="list-style:none; padding:0;">
-      {% for message in messages %}
-        <li style="
-            margin: 10px 0; 
-            padding: 10px; 
-            border-radius: 5px;
-            {% if message.tags == 'error' %}
-                background: #ffdddd; color:#900;
-            {% elif message.tags == 'warning' %}
-                background: #fff4ce; color:#7a5c00;
-            {% elif message.tags == 'success' %}
-                background: #ddffdd; color:#006600;
-            {% else %}
-                background: #e7f0fd; color:#003366;
-            {% endif %}
-        ">
-          {{ message }}
-        </li>
-      {% endfor %}
-    </ul>
-  {% endif %}
-  <!-- 🔥 End of Message Display -->
-
-  <main>
-    {% block content %}
-    {% endblock %}
-  </main>
+<body class="font-sans bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+    
+    <!-- Navigation -->
+    {% include 'partials/nav.html' %}
+    
+    <!-- Messages Container -->
+    <div id="messages-container" class="container mx-auto px-4 mt-4 max-w-7xl">
+        {% include 'partials/messages.html' %}
+    </div>
+    
+    <!-- Main Content -->
+    <main class="flex-grow container mx-auto px-4 py-8 max-w-7xl">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer -->
+    {% include 'partials/footer.html' %}
+    
+    <!-- Toast Container (for JavaScript toasts) -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-3 w-80 md:w-96"></div>
+    
+    <!-- Confirmation Modal (global) -->
+    <div id="global-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all duration-300 scale-95 opacity-0">
+            <div class="p-6">
+                <h3 class="text-xl font-semibold text-slate-900 mb-2" id="modal-title">Confirm Action</h3>
+                <p class="text-slate-600 mb-6" id="modal-message">Are you sure you want to proceed?</p>
+                <div class="flex justify-end space-x-3">
+                    <button onclick="hideModal()" class="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                    <button id="modal-confirm" class="px-4 py-2 bg-primary-600 text-white hover:bg-primary-700 rounded-lg transition-colors">
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Global JavaScript -->
+    <script>
+        // Toast function
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const colors = {
+                success: 'bg-green-100 border-green-300 text-green-800',
+                error: 'bg-red-100 border-red-300 text-red-800',
+                warning: 'bg-amber-100 border-amber-300 text-amber-800',
+                info: 'bg-blue-100 border-blue-300 text-blue-800'
+            };
+            
+            toast.className = `${colors[type]} border rounded-xl p-4 transform transition-all duration-300 translate-y-4 opacity-0 animate-slide-up shadow-lg`;
+            toast.innerHTML = `
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        ${type === 'success' ? '✓' : type === 'error' ? '✕' : type === 'warning' ? '⚠' : 'ℹ'}
+                    </div>
+                    <div class="ml-3 flex-1">${message}</div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-slate-500 hover:text-slate-700">
+                        ✕
+                    </button>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => {
+                toast.classList.remove('translate-y-4', 'opacity-0');
+            }, 10);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.classList.add('opacity-0', 'translate-y-4');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 5000);
+        }
+        
+        // Modal functions
+        function showModal(title, message, onConfirm) {
+            const modal = document.getElementById('global-modal');
+            const titleEl = document.getElementById('modal-title');
+            const messageEl = document.getElementById('modal-message');
+            const confirmBtn = document.getElementById('modal-confirm');
+            
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            
+            confirmBtn.onclick = function() {
+                onConfirm();
+                hideModal();
+            };
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.querySelector('.transform').classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+        
+        function hideModal() {
+            const modal = document.getElementById('global-modal');
+            modal.querySelector('.transform').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+        
+        // Character counter for textareas
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-char-counter]').forEach(textarea => {
+                const counter = document.getElementById(textarea.dataset.charCounter);
+                if (counter) {
+                    textarea.addEventListener('input', function() {
+                        counter.textContent = `${this.value.length}/${this.maxLength || '∞'}`;
+                        if (this.maxLength && this.value.length > this.maxLength * 0.9) {
+                            counter.classList.add('text-amber-600');
+                        } else {
+                            counter.classList.remove('text-amber-600');
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+    
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>

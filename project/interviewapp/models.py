@@ -24,7 +24,22 @@ class InterviewSession(models.Model):
     state = models.CharField(max_length=20, default='in_progress')
     current_index = models.IntegerField(default=0)
     total_score = models.FloatField(null=True, blank=True)
-
+    completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    total_questions = models.IntegerField(default=0)  # Track total questions
+    
+    @property
+    def answered_count(self):
+        return self.answers.count()
+    
+    @property
+    def duration(self):
+        if self.started_at and self.completed_at:
+            return int((self.completed_at - self.started_at).total_seconds() / 60)
+        return 0
+    def __str__(self):
+        return f"Session {self.id} - {self.role}"
+    
 class Answer(models.Model):
     session = models.ForeignKey(InterviewSession, on_delete=models.CASCADE, related_name='answers')
     question = models.ForeignKey(GeneratedQuestion, on_delete=models.SET_NULL, null=True)
@@ -38,3 +53,16 @@ class Answer(models.Model):
 
     class Meta:
         unique_together = ('session','index')
+
+class SessionQuestion(models.Model):
+    """Links questions to specific sessions to prevent repeats"""
+    session = models.ForeignKey(InterviewSession, on_delete=models.CASCADE, related_name='session_questions')
+    question = models.ForeignKey(GeneratedQuestion, on_delete=models.CASCADE)
+    asked = models.BooleanField(default=False)
+    order = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['order']
+    
+    def __str__(self):
+        return f"Session {self.session.id} - Q{self.order}"
