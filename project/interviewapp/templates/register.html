@@ -1,0 +1,396 @@
+{% extends "base.html" %}
+{% block title %}Create Account - MockInterview.ai{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8 animate-fade-in">
+        <!-- Header -->
+        <div class="text-center">
+            <div class="flex justify-center mb-6">
+                <div class="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center">
+                    <span class="text-white text-2xl font-bold">AI</span>
+                </div>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900">Create your account</h2>
+            <p class="mt-2 text-gray-600">
+                Join thousands of students and job seekers acing their interviews
+            </p>
+        </div>
+
+        <!-- Registration Form -->
+        <div class="bg-white rounded-2xl shadow-lg p-8">
+            {% if error %}
+            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+                <div class="flex">
+                    <svg class="w-5 h-5 text-red-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                    </svg>
+                    <div class="text-sm text-red-700">{{ error }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if messages %}
+            <div class="mb-6">
+                {% for message in messages %}
+                <div class="p-4 rounded-xl {% if message.tags == 'success' %}bg-green-50 border border-green-200 text-green-700{% else %}bg-blue-50 border border-blue-200 text-blue-700{% endif %}">
+                    <div class="flex">
+                        <svg class="w-5 h-5 {% if message.tags == 'success' %}text-green-400{% else %}text-blue-400{% endif %} mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            {% if message.tags == 'success' %}
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            {% else %}
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                            {% endif %}
+                        </svg>
+                        <div class="text-sm">{{ message }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+                
+                <!-- Name Fields -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="first_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            First Name
+                        </label>
+                        <input type="text" name="first_name" id="first_name" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                               placeholder="John">
+                    </div>
+                    <div>
+                        <label for="last_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            Last Name
+                        </label>
+                        <input type="text" name="last_name" id="last_name" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                               placeholder="Doe">
+                    </div>
+                </div>
+
+                <!-- Email -->
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                        Email Address
+                    </label>
+                    <input type="email" name="email" id="email" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                           placeholder="john.doe@example.com">
+                </div>
+
+                <!-- Username -->
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
+                        Username
+                    </label>
+                    <input type="text" name="username" id="username" required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                           placeholder="johndoe">
+                    <p class="mt-1 text-sm text-gray-500">This will be your public display name</p>
+                </div>
+
+                <!-- Password -->
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                        Password
+                    </label>
+                    <div class="relative">
+                        <input type="password" name="password" id="password" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                               placeholder="Create a strong password">
+                        <button type="button" onclick="togglePassword('password')"
+                                class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="mt-2">
+                        <div class="flex items-center space-x-2">
+                            <div id="password-strength" class="h-1 flex-1 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="password-strength-bar" class="h-full bg-red-500 rounded-full w-0"></div>
+                            </div>
+                            <span id="password-strength-text" class="text-xs text-gray-500">Weak</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Confirm Password -->
+                <div>
+                    <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-2">
+                        Confirm Password
+                    </label>
+                    <div class="relative">
+                        <input type="password" name="confirm_password" id="confirm_password" required
+                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                               placeholder="Confirm your password">
+                        <button type="button" onclick="togglePassword('confirm_password')"
+                                class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- User Type -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-3">
+                        I am a...
+                    </label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="relative">
+                            <input type="radio" name="user_type" value="student" class="sr-only peer" checked>
+                            <div class="p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-primary-500 peer-checked:border-primary-500 peer-checked:bg-primary-50 transition-all">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
+                                        <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-900">Student</div>
+                                        <div class="text-sm text-gray-600">College/University</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="relative">
+                            <input type="radio" name="user_type" value="job_seeker" class="sr-only peer">
+                            <div class="p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-primary-500 peer-checked:border-primary-500 peer-checked:bg-primary-50 transition-all">
+                                <div class="flex items-center">
+                                    <div class="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
+                                        <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-gray-900">Job Seeker</div>
+                                        <div class="text-sm text-gray-600">Professional</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Target Role (Optional) -->
+                <div>
+                    <label for="target_role" class="block text-sm font-medium text-gray-700 mb-2">
+                        Target Interview Role (Optional)
+                    </label>
+                    <select name="target_role" id="target_role"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">Select a role...</option>
+                        <option value="software_engineer">Software Engineer</option>
+                        <option value="product_manager">Product Manager</option>
+                        <option value="data_scientist">Data Scientist</option>
+                        <option value="ux_designer">UX Designer</option>
+                        <option value="hr_manager">HR Manager</option>
+                        <option value="business_analyst">Business Analyst</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <!-- Terms & Conditions -->
+                <div class="flex items-center">
+                    <input type="checkbox" name="terms" id="terms" required
+                           class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500 border-gray-300">
+                    <label for="terms" class="ml-3 text-sm text-gray-600">
+                        I agree to the 
+                        <a href="#" class="text-primary-600 hover:text-primary-800 font-medium">Terms of Service</a>
+                        and 
+                        <a href="#" class="text-primary-600 hover:text-primary-800 font-medium">Privacy Policy</a>
+                    </label>
+                </div>
+
+                <!-- Marketing Consent -->
+                <div class="flex items-center">
+                    <input type="checkbox" name="marketing" id="marketing"
+                           class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500 border-gray-300">
+                    <label for="marketing" class="ml-3 text-sm text-gray-600">
+                        Send me tips and updates to improve my interview skills
+                    </label>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit"
+                        class="w-full bg-primary-600 text-white py-4 px-4 rounded-xl hover:bg-primary-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-transform">
+                    Create Account
+                </button>
+            </form>
+
+            <!-- Divider -->
+            <div class="mt-8">
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-4 bg-white text-gray-500">Or continue with</span>
+                    </div>
+                </div>
+
+                <!-- Social Signup -->
+                <div class="mt-6 grid grid-cols-2 gap-3">
+                    <button type="button"
+                            class="w-full flex items-center justify-center py-3 px-4 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.666-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.787-.94 1.324-2.245 1.171-3.54-1.133.052-2.518.754-3.334 1.701-.735.85-1.389 2.207-1.208 3.514 1.26.091 2.544-.597 3.371-1.675z"/>
+                        </svg>
+                        Apple
+                    </button>
+                    <button type="button"
+                            class="w-full flex items-center justify-center py-3 px-4 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
+                        </svg>
+                        Google
+                    </button>
+                </div>
+            </div>
+
+            <!-- Login Link -->
+            <div class="mt-8 text-center">
+                <p class="text-gray-600">
+                    Already have an account?
+                    <a href="{% url 'interviewapp:login' %}" class="text-primary-600 hover:text-primary-800 font-medium">
+                        Sign in
+                    </a>
+                </p>
+            </div>
+        </div>
+
+        <!-- Trust Badges -->
+        <div class="text-center">
+            <p class="text-sm text-gray-500 mb-4">Trusted by students and professionals worldwide</p>
+            <div class="flex justify-center space-x-6">
+                <div class="text-center">
+                    <div class="text-lg font-bold text-gray-900">10K+</div>
+                    <div class="text-xs text-gray-500">Users</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-lg font-bold text-gray-900">95%</div>
+                    <div class="text-xs text-gray-500">Satisfaction</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-lg font-bold text-gray-900">24/7</div>
+                    <div class="text-xs text-gray-500">Support</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Password strength indicator
+    document.getElementById('password').addEventListener('input', function(e) {
+        const password = e.target.value;
+        const strengthBar = document.getElementById('password-strength-bar');
+        const strengthText = document.getElementById('password-strength-text');
+        
+        let strength = 0;
+        let text = 'Weak';
+        let color = 'bg-red-500';
+        
+        // Check password strength
+        if (password.length >= 8) strength++;
+        if (password.match(/[a-z]/) && password.match(/[A-Z]/)) strength++;
+        if (password.match(/\d/)) strength++;
+        if (password.match(/[^a-zA-Z\d]/)) strength++;
+        
+        // Update UI
+        if (strength === 0) {
+            text = 'Weak';
+            color = 'bg-red-500';
+        } else if (strength === 1) {
+            text = 'Fair';
+            color = 'bg-yellow-500';
+        } else if (strength === 2 || strength === 3) {
+            text = 'Good';
+            color = 'bg-blue-500';
+        } else if (strength === 4) {
+            text = 'Strong';
+            color = 'bg-green-500';
+        }
+        
+        strengthBar.className = `h-full ${color} rounded-full transition-all duration-300`;
+        strengthBar.style.width = `${(strength / 4) * 100}%`;
+        strengthText.textContent = text;
+    });
+    
+    // Toggle password visibility
+    function togglePassword(fieldId) {
+        const field = document.getElementById(fieldId);
+        const type = field.getAttribute('type') === 'password' ? 'text' : 'password';
+        field.setAttribute('type', type);
+    }
+    
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        const terms = document.getElementById('terms').checked;
+        
+        // Check password match
+        if (password !== confirmPassword) {
+            e.preventDefault();
+            alert('Passwords do not match. Please try again.');
+            document.getElementById('confirm_password').focus();
+            return false;
+        }
+        
+        // Check terms acceptance
+        if (!terms) {
+            e.preventDefault();
+            alert('You must accept the Terms of Service and Privacy Policy to continue.');
+            document.getElementById('terms').focus();
+            return false;
+        }
+        
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = `
+            <svg class="animate-spin h-5 w-5 text-white mx-auto" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Creating account...
+        `;
+        submitBtn.disabled = true;
+    });
+</script>
+
+<style>
+    .gradient-bg {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .animate-fade-in {
+        animation: fadeIn 0.6s ease-out;
+    }
+    
+    /* Custom checkbox styling */
+    input[type="checkbox"]:checked {
+        background-color: #0ea5e9;
+        border-color: #0ea5e9;
+    }
+    
+    /* Focus styles */
+    input:focus, select:focus {
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+    }
+</style>
+{% endblock %}

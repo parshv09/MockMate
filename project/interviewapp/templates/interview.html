@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Interview Session - AI Mock Interview{% endblock %}
+style="width: {% widthratio session.current_index session.current_index|add:5 100 %}%"
 
 {% block content %}
 <div class="animate-fade-in">
@@ -19,8 +20,8 @@
                 <span>Question {{ session.current_index }}</span>
             </div>
             <div class="w-full bg-slate-200 rounded-full h-2">
-                <div class="bg-primary-600 h-2 rounded-full transition-all duration-500" 
-                     style="width: {% widthratio session.current_index session.current_index|add:5 100 %}%"></div>
+                  <div id="session-progress" class="bg-primary-600 h-2 rounded-full transition-all duration-500"
+       style="width: 0%"></div>
             </div>
         </div>
     </div>
@@ -123,7 +124,16 @@
             document.getElementById('submit-button').click();
         }
     });
-    
+     document.addEventListener('DOMContentLoaded', function() {
+    // compute safely in client-side: use session.current_index and session.total_questions if passed
+    const progressEl = document.getElementById('session-progress');
+    if (!progressEl) return;
+    // Pass values via data attributes from template (set attributes on a wrapper if available)
+    const idx = parseInt('{{ session.current_index|default:1 }}', 10) || 1;
+    const total = parseInt('{{ session.total_questions|default:5 }}', 10) || idx;
+    const pct = Math.max(0, Math.min(100, Math.round((idx / Math.max(1, total)) * 100)));
+    setTimeout(() => { progressEl.style.width = pct + '%'; }, 100);
+  });
     // Form submission loading state
     document.querySelector('form').addEventListener('submit', function() {
         const button = document.getElementById('submit-button');

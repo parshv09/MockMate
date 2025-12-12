@@ -4,8 +4,10 @@ from . import views
 app_name = 'interviewapp'
 
 urlpatterns = [
-    path('', views.dashboard, name='dashboard'),
+    path('', views.home_page, name='home'),
+    path('dash/', views.dashboard, name='dashboard'),
     path('login/', views.user_login, name='login'),
+    path('register/', views.register, name='register'),
     path('logout/', views.user_logout, name='logout'),
     path('start/', views.start_session, name='start_session'),
     path('session/<int:session_id>/next/', views.next_question, name='next_question'),

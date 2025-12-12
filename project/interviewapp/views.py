@@ -22,6 +22,11 @@ ROLE_MAP = {
     # add any other possible keys your form sends
 }
 
+def home_page(request):
+    return render(request, 'home.html')
+
+
+
 def generate_question_stub(role, difficulty=3):
     """
     Generate a question stub based on the role and difficulty.
@@ -84,52 +89,37 @@ def dashboard(request):
 logger = logging.getLogger(__name__)
 
 
+# Replace the start_session function in interviewapp/views.py with this:
 @login_required
 def start_session(request):
     """
-    Create an InterviewSession and prefetch `n_questions` using Groq (llama-3.1-8b-instant).
-    Falls back to a template stub generator if Groq fails or doesn't produce enough unique questions.
+    Create an InterviewSession and prefill exactly n questions and corresponding Answer rows.
+    Ensures this session will only ever use the created n questions.
     """
     if request.method == 'POST':
         form = StartSessionForm(request.POST)
         if form.is_valid():
-            raw_role = form.cleaned_data['role']
-            # normalize to human readable role for model prompt
+            raw_role = form.cleaned_data['role']               # DB key (e.g. 'tech')
             role_for_prompt = ROLE_MAP.get(raw_role.lower(), raw_role.capitalize())
             n = form.cleaned_data['n_questions']
-            s = InterviewSession.objects.create(user=request.user, role=raw_role, total_questions=n )
-             # DEBUG: Check role mapping
-            print(f"DEBUG: Raw role from form: {raw_role}")
-            print(f"DEBUG: Looking for questions with role: {raw_role}")
+
+            # create the session
+            s = InterviewSession.objects.create(user=request.user, role=raw_role, total_score=None, current_index=0)
+
             created = 0
-            # Safety caps
-            max_attempts = max(50, n * 10)
             attempts = 0
-                # DEBUG: Count how many questions were actually created
-            total_questions = GeneratedQuestion.objects.filter(role=raw_role).count()
-            print(f"DEBUG: Total questions for role '{raw_role}': {total_questions}")
-            if total_questions == 0:
-                print("DEBUG: WARNING: No questions generated! Creating fallback questions...")
-                # Create emergency fallback questions
-                for i in range(1, n+1):
-                    GeneratedQuestion.objects.create(
-                        role=raw_role,
-                        difficulty=3,
-                        text=f"({raw_role}) Question {i}: Describe your relevant experience and skills.",
-                        keywords=f"{raw_role},experience,skills",
-                        source='emergency'
-                    )
-            # 1) Try to get questions from Groq (llama-3.1-8b-instant)
-            llm_questions = []
+            max_attempts = max(50, n * 10)
+            created_question_ids = []  # keep order of created questions
+
+            # 1) Try LLM generation first
             try:
-                # generate_questions_groq returns list of dicts: {'text','keywords','difficulty'}
                 llm_questions = generate_questions_groq(role=role_for_prompt, n=n, difficulty=3, model="llama-3.1-8b-instant")
-                
             except Exception as e:
                 logger.exception("Groq generation error: %s", e)
                 messages.warning(request, "AI question generation temporarily failed — using fallback questions.")
+                llm_questions = []
 
-            # 2) Save unique questions from LLM output
+            # 2) Save unique LLM questions to DB (but attach only IDs to this session)
             for qobj in llm_questions:
                 if created >= n:
                     break
@@ -137,146 +127,144 @@ def start_session(request):
                 if not text:
                     continue
                 sig = signature_of_text(text)
-                if GeneratedQuestion.objects.filter(signature=sig).exists():
-                    # duplicate, skip
-                    continue
-                GeneratedQuestion.objects.create(
-                    role=role_for_prompt,
-                    difficulty=qobj.get("difficulty", 3),
-                    text=text,
-                    keywords=qobj.get("keywords", ""),
+                # If a DB row with same signature exists, reuse that question row (but still include it in session)
+                qrow, _ = GeneratedQuestion.objects.get_or_create(
                     signature=sig,
-                    source='llm'
+                    defaults={
+                        "role": raw_role,
+                        "difficulty": qobj.get("difficulty", 3),
+                        "text": text,
+                        "keywords": qobj.get("keywords", ""),
+                        "source": "llm"
+                    }
                 )
+                # ensure role stored is the raw_role key so session lookups remain consistent
+                if qrow.role != raw_role:
+                    qrow.role = raw_role
+                    qrow.save(update_fields=["role"])
+
+                created_question_ids.append(qrow.id)
                 created += 1
 
-            # 3) If we still need more questions, use the template stub generator until we reach n or hit max_attempts
+            # 3) If still need more, create fallback stub questions
             while created < n and attempts < max_attempts:
                 attempts += 1
-                try:
-                    payload = generate_question_stub(role_for_prompt, difficulty=2)  # your existing stub function
-                except Exception as e:
-                    logger.exception("Fallback stub generation failed: %s", e)
-                    break
+                payload = generate_question_stub(raw_role, difficulty=2)
                 text = payload.get('text', '').strip()
                 if not text:
                     continue
                 sig = signature_of_text(text)
-                if GeneratedQuestion.objects.filter(signature=sig).exists():
-                    continue
-                GeneratedQuestion.objects.create(
-                    role=role_for_prompt,
-                    difficulty=payload.get('difficulty', 3),
-                    text=text,
-                    keywords=payload.get('keywords', ''),
+                qrow, created_new = GeneratedQuestion.objects.get_or_create(
                     signature=sig,
-                    source='template'
+                    defaults={
+                        "role": raw_role,
+                        "difficulty": payload.get("difficulty", 3),
+                        "text": text,
+                        "keywords": payload.get("keywords", ""),
+                        "source": "template"
+                    }
                 )
+                # If we already had the signature, but the role differs, ensure consistency:
+                if qrow.role != raw_role:
+                    qrow.role = raw_role
+                    qrow.save(update_fields=["role"])
+
+                # if this qrow already in our session list, skip (we want n unique entries)
+                if qrow.id in created_question_ids:
+                    continue
+
+                created_question_ids.append(qrow.id)
                 created += 1
 
-            # 4) Inform user if we couldn't create the full requested number
+            # 4) If created < n still, warn user (but proceed with whatever created)
             if created < n:
-                messages.warning(request, f"Created {created}/{n} questions (some duplicates were skipped).")
+                messages.warning(request, f"Only created {created}/{n} questions for this session.")
 
-            # 5) Redirect to the first question (next_question view handles no-question case)
+            # 5) Create Answer placeholders in the exact order for this session
+            # remove any existing answers for this session (defensive)
+            s.answers.all().delete()
+            idx = 1
+            for qid in created_question_ids:
+                qobj = GeneratedQuestion.objects.get(id=qid)
+                Answer.objects.create(session=s, question=qobj, index=idx)
+                idx += 1
+
+            # 6) Redirect to the first question (next_question reads the next unprocessed answer)
             return redirect('interviewapp:next_question', session_id=s.id)
     else:
         form = StartSessionForm()
 
     return render(request, 'start.html', {'form': form})
 
+
+
 @login_required
 def next_question(request, session_id):
     session = get_object_or_404(InterviewSession, id=session_id)
     if session.user != request.user:
         return HttpResponseForbidden("This session does not belong to you.")
-    
-    # Count how many questions have been answered in this session
-    answered_count = session.answers.count()
-    
-    # Check if we've reached the requested number of questions
-    # Default to 5 if not specified (for backward compatibility)
-    requested_count = getattr(session, 'total_questions', 5)
-    
-    print(f"DEBUG: Answered {answered_count} questions, requested {requested_count}")
-    
-    if answered_count >= requested_count:
-        # All requested questions answered, go to summary
-        print(f"DEBUG: All {requested_count} questions answered, redirecting to summary")
+
+    # find the next Answer placeholder for this session that is not processed
+    # prefer 'processed' flag, or if you use answer_text, use answer_text=''
+    next_ans = session.answers.filter(processed=False).order_by('index').first()
+    if not next_ans:
+        # no more questions -> go to summary
         return redirect('interviewapp:session_summary', session_id=session.id)
-    
-    # Get used question IDs
-    used_q_ids = session.answers.values_list('question_id', flat=True)
-    
-    # Find next question
-    q = GeneratedQuestion.objects.filter(role=session.role).exclude(id__in=used_q_ids).first()
-    
-    if not q:
-        print("DEBUG: No more questions available, going to summary")
-        return redirect('interviewapp:session_summary', session_id=session.id)
-    
-    # Increment index and create answer
-    with transaction.atomic():
-        # Set current index to (answered + 1) to show correct question number
-        session.current_index = answered_count + 1
-        session.save()
-        ans = Answer.objects.create(session=session, question=q, index=session.current_index)
-    
+
+    # update session.current_index to reflect current progress
+    session.current_index = next_ans.index
+    session.save(update_fields=['current_index'])
+
+    # Render the question page for this Answer
     form = AnswerForm()
-    return render(request, 'interview.html', {'question': q, 'answer_id': ans.id, 'form': form, 'session': session})
+    return render(request, 'interview.html', {
+        'question': next_ans.question,
+        'answer_id': next_ans.id,
+        'form': form,
+        'session': session
+    })
+
 
 @login_required
 def submit_answer(request, session_id):
     if request.method != 'POST':
         return redirect('interviewapp:next_question', session_id=session_id)
-    
-    session = get_object_or_404(InterviewSession, id=session_id, user=request.user)
+    session = get_object_or_404(InterviewSession, id=session_id)
+    if session.user != request.user:
+        return HttpResponseForbidden()
     answer_id = request.POST.get('answer_id')
-    
-    try:
-        answer = Answer.objects.get(id=answer_id, session=session)
-    except Answer.DoesNotExist:
-        messages.error(request, "Answer not found.")
-        return redirect('interviewapp:next_question', session_id=session.id)
-    
-    form = AnswerForm(request.POST)
+    ans = get_object_or_404(Answer, id=answer_id, session=session)
+    form = AnswerForm(request.POST, request.FILES)
     if form.is_valid():
-        answer_text = form.cleaned_data.get('answer_text', '').strip()
-        
-        if not answer_text:
-            messages.error(request, "Please provide an answer.")
-            return redirect('interviewapp:next_question', session_id=session.id)
-        
-        # Save the answer text
-        answer.answer_text = answer_text
-        
-        # Get AI analysis
-        try:
-            result = analyze_transcript(answer_text, answer.question)
-            answer.score = result['score']
-            answer.feedback = result['feedback']
-            answer.processed = True
-        except Exception as e:
-            # If analysis fails, still save answer but with default score
-            answer.score = 5
-            answer.feedback = f"Analysis failed: {str(e)}. Your answer was saved."
-            answer.processed = False
-        
-        answer.save()
-        
-        # Show success message
-        messages.success(request, "Answer submitted successfully!")
-        
-        # Redirect to next question
+        ans.answer_text = form.cleaned_data.get('answer_text','').strip()
+        result = analyze_transcript(ans.answer_text, ans.question)
+        ans.score = result['score']
+        ans.feedback = result['feedback']
+        ans.processed = True
+        ans.save()
         return redirect('interviewapp:next_question', session_id=session.id)
-    
-    # If form invalid, show the question again
-    return render(request, 'interview.html', {
-        'question': answer.question,
-        'answer_id': answer.id,
-        'form': form,
-        'session': session
-    })
+    return render(request, 'interview.html', {'question': ans.question, 'answer_id': ans.id, 'form': form, 'session': session})
+
+@login_required
+def submit_answer(request, session_id):
+    if request.method != 'POST':
+        return redirect('interviewapp:next_question', session_id=session_id)
+    session = get_object_or_404(InterviewSession, id=session_id)
+    if session.user != request.user:
+        return HttpResponseForbidden()
+    answer_id = request.POST.get('answer_id')
+    ans = get_object_or_404(Answer, id=answer_id, session=session)
+    form = AnswerForm(request.POST, request.FILES)
+    if form.is_valid():
+        ans.answer_text = form.cleaned_data.get('answer_text','').strip()
+        result = analyze_transcript(ans.answer_text, ans.question)
+        ans.score = result['score']
+        ans.feedback = result['feedback']
+        ans.processed = True
+        ans.save()
+        return redirect('interviewapp:next_question', session_id=session.id)
+    return render(request, 'interview.html', {'question': ans.question, 'answer_id': ans.id, 'form': form, 'session': session})
+
 @login_required
 def skip_question(request, session_id):
     session = get_object_or_404(InterviewSession, id=session_id)
@@ -315,46 +303,97 @@ def end_session(request, session_id):
     messages.success(request, f"Interview session {session.id} completed!")
     return redirect('interviewapp:session_summary', session_id=session.id)
 
+from .qgen_groq import generate_session_suggestions
 
 @login_required
 def session_summary(request, session_id):
     session = get_object_or_404(InterviewSession, id=session_id)
     if session.user != request.user:
         return HttpResponseForbidden()
-    
+
+    # fetch answers and compute avg
     answers = session.answers.select_related('question').all().order_by('index')
     scores = [a.score for a in answers if a.score is not None]
-    avg = sum(scores)/len(scores) if scores else None
+    avg = (sum(scores) / len(scores)) if scores else None
     session.total_score = avg
-    session.save()
-    
-    # Calculate duration (example: using started_at and completed_at)
+    # Save total_score but avoid saving suggestions here; we may persist later
+    session.save(update_fields=['total_score'])
+
+    # duration (minutes) — uses session.completed_at if present
     duration = 0
-    if session.started_at and hasattr(session, 'completed_at') and session.completed_at:
+    if session.started_at and getattr(session, 'completed_at', None):
         duration = int((session.completed_at - session.started_at).total_seconds() / 60)
-    
-    # Generate strengths and improvements from feedback
+
+    # lightweight strengths/improvements extraction from answer.feedback (keeps your original behavior)
     strengths = []
     improvements = []
     for answer in answers:
-        if answer.feedback:
-            # Simple parsing - adjust based on your feedback structure
-            if 'good' in answer.feedback.lower() or 'excellent' in answer.feedback.lower():
-                strengths.append(f"Strong answer to: {answer.question.text[:50]}...")
-            if 'improve' in answer.feedback.lower() or 'better' in answer.feedback.lower():
-                improvements.append(f"Could improve: {answer.question.text[:50]}...")
-    
-    # Remove duplicates
-    strengths = list(set(strengths))[:3]
-    improvements = list(set(improvements))[:3]
-    
+        fb = (answer.feedback or "").lower()
+        text_snippet = answer.question.text[:70] + ("..." if len(answer.question.text) > 70 else "")
+        if fb:
+            if 'good' in fb or 'excellent' in fb or 'well' in fb:
+                strengths.append(f"Strong answer to: {text_snippet}")
+            if 'improv' in fb or 'better' in fb or 'need' in fb:
+                improvements.append(f"Could improve: {text_snippet}")
+
+    strengths = list(dict.fromkeys(strengths))[:3]     # preserve order, dedupe, limit
+    improvements = list(dict.fromkeys(improvements))[:5]
+
+    # Build the simple answers list to send to the LLM helper
+    answer_payload = []
+    for a in answers:
+        answer_payload.append({
+            "question_text": a.question.text,
+            "answer_text": a.answer_text or "",
+            "score": a.score if a.score is not None else 0,
+            "feedback": a.feedback or ""
+        })
+
+    # If suggestions were previously saved on the session, use them; otherwise generate
+    suggestions = getattr(session, "suggestions_json", None) or None
+
+    if not suggestions:
+        try:
+            suggestions = generate_session_suggestions(session, answer_payload, model="llama-3.1-8b-instant")
+            # If the model returned something unexpected, ensure keys exist
+            if not isinstance(suggestions, dict):
+                suggestions = None
+        except Exception as e:
+            # LLM failed — fallback to simple heuristics (use strengths/improvements we built)
+            suggestions = None
+            logger = logging.getLogger(__name__)
+            logger.exception("Suggestion generation failed: %s", e)
+
+    # If suggestions exist and session model supports persisting them, save once
+    if suggestions and hasattr(session, "suggestions_json"):
+        try:
+            # Save suggestions atomically
+            with transaction.atomic():
+                session.suggestions_json = suggestions
+                session.save(update_fields=["suggestions_json"])
+        except Exception:
+            # ignore save errors (DB migration might not exist); keep suggestions ephemeral
+            pass
+
+    # If suggestions missing, create harmless defaults
+    if not suggestions:
+        suggestions = {
+            "strengths": strengths or ["Clear answers to some questions."],
+            "improvements": improvements or ["Work on structuring answers and giving concrete examples."],
+            "overall_tip": "Practice concise explanations, and focus on weaker areas identified above.",
+            "resources": ["Review domain fundamentals", "Practice mock interviews", "Study common patterns"]
+        }
+
+    # Render the template with both LLM suggestions and the simple parsed lists
     return render(request, 'summary.html', {
         'session': session,
         'answers': answers,
-        'avg': round(avg, 2) if avg else None,
+        'avg': round(avg, 2) if avg is not None else None,
         'duration': duration,
-        'strengths': strengths,
-        'improvements': improvements
+        'strengths': suggestions.get('strengths', strengths),
+        'improvements': suggestions.get('improvements', improvements),
+        'overall_tip': suggestions.get('overall_tip', ''),
+        'resources': suggestions.get('resources', [])
     })
 
 class SimpleStartForm(forms.Form):
@@ -413,3 +452,71 @@ def start_session_simple(request):
         form = SimpleStartForm()
     
     return render(request, 'start.html', {'form': form})
+
+from django.contrib.auth.models import User
+from django.contrib.auth import login
+from django.contrib import messages
+
+def register(request):
+    """
+    Handle user registration
+    """
+    if request.method == 'POST':
+        # Get form data
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip()
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
+        confirm_password = request.POST.get('confirm_password', '').strip()
+        user_type = request.POST.get('user_type', 'student')
+        target_role = request.POST.get('target_role', '')
+        
+        # Validation
+        errors = []
+        
+        if not all([first_name, last_name, email, username, password, confirm_password]):
+            errors.append("All fields are required.")
+        
+        if password != confirm_password:
+            errors.append("Passwords do not match.")
+        
+        if len(password) < 8:
+            errors.append("Password must be at least 8 characters long.")
+        
+        if User.objects.filter(username=username).exists():
+            errors.append("Username already exists.")
+        
+        if User.objects.filter(email=email).exists():
+            errors.append("Email already registered.")
+        
+        if errors:
+            return render(request, 'register.html', {'error': ' '.join(errors)})
+        
+        try:
+            # Create user
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name
+            )
+            
+            # You can store additional user info in a UserProfile model if needed
+            # UserProfile.objects.create(user=user, user_type=user_type, target_role=target_role)
+            
+            # Log the user in
+            login(request, user)
+            
+            # Send welcome message
+            messages.success(request, f"Welcome {first_name}! Your account has been created successfully.")
+            
+            # Redirect to dashboard
+            return redirect('interviewapp:dashboard')
+            
+        except Exception as e:
+            return render(request, 'register.html', {'error': f"An error occurred: {str(e)}"})
+    
+    # GET request - show registration form
+    return render(request, 'register.html')

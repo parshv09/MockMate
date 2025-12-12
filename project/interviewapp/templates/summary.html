@@ -3,219 +3,212 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto animate-fade-in">
-    <!-- Header -->
-    <div class="mb-10">
-        <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
-            <div>
-                <h1 class="text-3xl font-bold text-slate-900">Interview Session Summary</h1>
-                <p class="text-slate-600">Review your performance and feedback</p>
-            </div>
-            <div class="mt-4 md:mt-0">
-                <button onclick="downloadReport()" 
-                        class="bg-primary-600 text-white px-6 py-3 rounded-xl hover:bg-primary-700 transition-colors font-semibold flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    Download Report
-                </button>
-            </div>
-        </div>
-        
-        <!-- Session Info Card -->
-        <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                    <div class="text-sm text-slate-600 mb-1">Role</div>
-                    <div class="text-lg font-semibold text-slate-900">{{ session.role }}</div>
-                </div>
-                <div>
-                    <div class="text-sm text-slate-600 mb-1">Date</div>
-                    <div class="text-lg font-semibold text-slate-900">{{ session.started_at|date:"F d, Y" }}</div>
-                </div>
-                <div>
-                    <div class="text-sm text-slate-600 mb-1">Duration</div>
-                    <div class="text-lg font-semibold text-slate-900">{{ session.duration }} minutes</div>
-                </div>
-            </div>
-        </div>
+  <!-- Header -->
+  <div class="mb-10">
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
+      <div>
+        <h1 class="text-3xl font-bold text-slate-900">Interview Session Summary</h1>
+        <p class="text-slate-600">Review your performance and feedback</p>
+      </div>
+      <div class="mt-4 md:mt-0">
+        <button onclick="downloadReport()"
+                class="bg-primary-600 text-white px-6 py-3 rounded-xl hover:bg-primary-700 transition-colors font-semibold flex items-center">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          Download Report
+        </button>
+      </div>
     </div>
-    
-    <!-- Overall Score -->
-    <!-- In summary.html, replace the overall score section (lines ~45-80) with: -->
-<div class="bg-gradient-to-r from-primary-600 to-accent-500 rounded-2xl shadow-lg p-8 text-white mb-10">
-    <div class="flex flex-col md:flex-row items-center justify-between">
+
+    <!-- Session Info Card -->
+    <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div>
-            <h2 class="text-2xl font-bold mb-2">Overall Performance</h2>
-            <p class="text-primary-100">Average score across all questions</p>
+          <div class="text-sm text-slate-600 mb-1">Role</div>
+          <div class="text-lg font-semibold text-slate-900">{{ session.role }}</div>
         </div>
-        <div class="mt-6 md:mt-0">
-            <div class="relative w-40 h-40">
-                <svg class="w-full h-full" viewBox="0 0 100 100">
-                    <!-- Background circle -->
-                    <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="10"/>
-                    <!-- Progress circle - FIXED LINE -->
-                    {% with dashoffset=283|add:"0"|slice:":-1" %}
-                    {% with score_percentage=avg|default:0|floatformat:"0" %}
-                    <circle cx="50" cy="50" r="45" fill="none" stroke="white" stroke-width="10" 
-                            stroke-linecap="round" stroke-dasharray="283" 
-                            stroke-dashoffset="{% widthratio 100|add:score_percentage 100 283 %}"/>
-                    {% endwith %}
-                    {% endwith %}
-                    <!-- Inner text -->
-                    <text x="50" y="55" text-anchor="middle" font-size="24" font-weight="bold" fill="white">
-                        {{ avg|floatformat:1|default:"0.0" }}
-                    </text>
-                    <text x="50" y="70" text-anchor="middle" font-size="12" fill="rgba(255,255,255,0.8)">
-                        / 10
-                    </text>
-                </svg>
-            </div>
+        <div>
+          <div class="text-sm text-slate-600 mb-1">Date</div>
+          <div class="text-lg font-semibold text-slate-900">
+            {{ session.started_at|date:"F d, Y" }}</div>
         </div>
+        <div>
+          <div class="text-sm text-slate-600 mb-1">Duration</div>
+          <div class="text-lg font-semibold text-slate-900">
+            {{ duration|default:0 }} minutes
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <!-- Overall Score (JS computes percent; template only renders avg value) -->
+  <div class="bg-gradient-to-r from-primary-600 to-accent-500 rounded-2xl shadow-lg p-8 text-white mb-10">
+    <div class="flex flex-col md:flex-row items-center justify-between">
+      <div>
+        <h2 class="text-2xl font-bold mb-2">Overall Performance</h2>
+        <p class="text-primary-100">Average score across all questions</p>
+      </div>
+
+      <div class="mt-6 md:mt-0 flex items-center">
+        <div class="relative w-36 h-36" data-avg="{{ avg|default:0 }}">
+          <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="10"/>
+            <circle id="summary-progress-circle" cx="50" cy="50" r="45" fill="none" stroke="white" stroke-width="10"
+                    stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283"/>
+            <text x="50" y="54" text-anchor="middle" font-size="20" font-weight="700" fill="white">
+              {{ avg|default:0|floatformat:1 }}
+            </text>
+            <text x="50" y="69" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.9)">/ 10</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Question-wise Feedback -->
+  <div class="mb-10">
+    <h2 class="text-2xl font-bold text-slate-900 mb-6">Detailed Feedback</h2>
+
+    <div class="space-y-6">
+      {% for a in answers %}
+      {# safe default score variable so comparisons never break #}
+      {% with score=a.score|default:0 %}
+      <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden transform transition-all hover:shadow-xl">
+        <div class="p-6 md:p-8">
+          <div class="flex flex-col md:flex-row md:items-start justify-between mb-6">
+            <div class="mb-4 md:mb-0 md:mr-6">
+              <div class="flex items-center space-x-3 mb-3">
+                <span class="px-3 py-1 bg-primary-50 text-primary-700 rounded-full text-sm font-medium">
+                  Question {{ forloop.counter }}
+                </span>
+             {% with score=a.score|default:0 %}
+  <span class="px-3 py-1 {% if score|add:0 >= 8 %}bg-green-100 text-green-700{% elif score|add:0 >= 6 %}bg-amber-100 text-amber-700{% else %}bg-red-100 text-red-700{% endif %} rounded-full text-sm font-medium">
+    Score: {{ score|default:0 }}/10
+  </span>
+{% endwith %}
+
+              </div>
+              <h3 class="text-xl font-semibold text-slate-900 mb-3">{{ a.question.text }}</h3>
+            </div>
+<div class="text-3xl font-bold 
+{% if score|add:0 >= 8 %}
+    text-green-600
+{% elif score|add:0 >= 6 %}
+    text-amber-600
+{% else %}
+    text-red-600
+{% endif %}
+">
+    {{ score|default:0 }}/10
 </div>
-    
-    <!-- Question-wise Feedback -->
-    <div class="mb-10">
-        <h2 class="text-2xl font-bold text-slate-900 mb-6">Detailed Feedback</h2>
-        
-        <div class="space-y-6">
-            {% for a in answers %}
-            <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden transform transition-all hover:shadow-xl">
-                <div class="p-6 md:p-8">
-                    <div class="flex flex-col md:flex-row md:items-start justify-between mb-6">
-                        <div class="mb-4 md:mb-0 md:mr-6">
-                            <div class="flex items-center space-x-3 mb-3">
-                                <span class="px-3 py-1 bg-primary-50 text-primary-700 rounded-full text-sm font-medium">
-                                    Question {{ forloop.counter }}
-                                </span>
-                                <span class="px-3 py-1 {% if a.score >= 8 %}bg-green-100 text-green-700{% elif a.score >= 6 %}bg-amber-100 text-amber-700{% else %}bg-red-100 text-red-700{% endif %} rounded-full text-sm font-medium">
-                                    Score: {{ a.score }}/10
-                                </span>
-                            </div>
-                            <h3 class="text-xl font-semibold text-slate-900 mb-3">{{ a.question.text }}</h3>
-                        </div>
-                        <div class="text-3xl font-bold {% if a.score >= 8 %}text-green-600{% elif a.score >= 6 %}text-amber-600{% else %}text-red-600{% endif %}">
-                            {{ a.score }}/10
-                        </div>
-                    </div>
-                    
-                    <!-- Answer -->
-                    <div class="mb-6">
-                        <h4 class="text-sm font-medium text-slate-700 mb-2">Your Answer</h4>
-                        <div class="bg-slate-50 rounded-xl p-4">
-                            <p class="text-slate-700">{{ a.answer_text|default:"No answer provided" }}</p>
-                        </div>
-                    </div>
-                    
-                    <!-- Feedback -->
-                    <div>
-                        <h4 class="text-sm font-medium text-slate-700 mb-2">AI Feedback</h4>
-                        <div class="bg-gradient-to-r from-primary-50 to-white rounded-xl p-4 border border-primary-100">
-                            <p class="text-slate-700">{{ a.feedback }}</p>
-                            
-                            {% if a.improvement_tips %}
-                            <div class="mt-4 pt-4 border-t border-primary-200">
-                                <h5 class="text-sm font-medium text-slate-700 mb-2">Improvement Tips</h5>
-                                <ul class="list-disc pl-5 text-slate-600 space-y-1">
-                                    {% for tip in a.improvement_tips %}
-                                    <li>{{ tip }}</li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
+
+          </div>
+
+          <!-- Answer -->
+          <div class="mb-6">
+            <h4 class="text-sm font-medium text-slate-700 mb-2">Your Answer</h4>
+            <div class="bg-slate-50 rounded-xl p-4">
+              <p class="text-slate-700">{{ a.answer_text|default:"No answer provided" }}</p>
             </div>
-            {% endfor %}
-        </div>
-    </div>
-    
-    <!-- Action Buttons -->
-    <div class="flex flex-col sm:flex-row items-center justify-between bg-white rounded-2xl shadow-lg p-6 mb-10">
-        <div class="mb-4 sm:mb-0">
-            <h3 class="text-lg font-semibold text-slate-900 mb-2">Ready for another round?</h3>
-            <p class="text-slate-600">Practice makes perfect. Try again with different questions.</p>
-        </div>
-        <div class="flex space-x-4">
-            <a href="{% url 'interviewapp:dashboard' %}" 
-               class="px-6 py-3 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl transition-colors font-medium">
-                Back to Dashboard
-            </a>
-            <a href="{% url 'interviewapp:start_session' %}" 
-               class="px-6 py-3 bg-primary-600 text-white hover:bg-primary-700 rounded-xl transition-colors font-medium">
-                Start New Interview
-            </a>
-        </div>
-    </div>
-    
-    <!-- Performance Insights -->
-    <div class="bg-slate-50 rounded-2xl p-8">
-        <h3 class="text-xl font-semibold text-slate-900 mb-6">Performance Insights</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
-                <h4 class="text-lg font-medium text-slate-900 mb-4">Strengths</h4>
-                <ul class="space-y-3">
-                    {% for strength in strengths %}
-                    <li class="flex items-start">
-                        <svg class="w-5 h-5 text-green-500 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="text-slate-700">{{ strength }}</span>
-                    </li>
-                    {% empty %}
-                    <li class="text-slate-600 italic">Keep practicing to identify your strengths!</li>
-                    {% endfor %}
+          </div>
+
+          <!-- Feedback -->
+          <div>
+            <h4 class="text-sm font-medium text-slate-700 mb-2">AI Feedback</h4>
+            <div class="bg-gradient-to-r from-primary-50 to-white rounded-xl p-4 border border-primary-100">
+              <p class="text-slate-700">{{ a.feedback|default:"No feedback available." }}</p>
+
+              {% if a.improvement_tips %}
+              <div class="mt-4 pt-4 border-t border-primary-200">
+                <h5 class="text-sm font-medium text-slate-700 mb-2">Improvement Tips</h5>
+                <ul class="list-disc pl-5 text-slate-600 space-y-1">
+                  {% for tip in a.improvement_tips %}
+                  <li>{{ tip }}</li>
+                  {% endfor %}
                 </ul>
+              </div>
+              {% endif %}
             </div>
-            <div>
-                <h4 class="text-lg font-medium text-slate-900 mb-4">Areas for Improvement</h4>
-                <ul class="space-y-3">
-                    {% for improvement in improvements %}
-                    <li class="flex items-start">
-                        <svg class="w-5 h-5 text-amber-500 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                        </svg>
-                        <span class="text-slate-700">{{ improvement }}</span>
-                    </li>
-                    {% empty %}
-                    <li class="text-slate-600 italic">Great job! No major areas for improvement identified.</li>
-                    {% endfor %}
-                </ul>
-            </div>
+          </div>
         </div>
+      </div>
+      {% endwith %}
+      {% endfor %}
     </div>
+  </div>
+
+  
+
+  <!-- Performance Insights -->
+  <div class="bg-slate-50 rounded-2xl p-8">
+    <h3 class="text-xl font-semibold text-slate-900 mb-6">Performance Insights</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div class="mt-6 md:col-span-2">
+        <h4 class="text-lg font-semibold">Overall Tip</h4>
+        <p class="text-slate-700">{{ overall_tip|default:"Practice concise explanations and focus on your weaker areas." }}</p>
+
+        <h4 class="mt-4 text-lg font-semibold">Resources</h4>
+        <ul class="list-disc pl-6">
+          {% for r in resources %}
+            <li>{{ r }}</li>
+          {% empty %}
+            <li>No resources suggested.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="flex flex-col sm:flex-row items-center justify-between bg-white rounded-2xl shadow-lg p-6 mb-10">
+    <div class="mb-4 sm:mb-0">
+      <h3 class="text-lg font-semibold text-slate-900 mb-2">Ready for another round?</h3>
+      <p class="text-slate-600">Practice makes perfect. Try again with different questions.</p>
+    </div>
+    <div class="flex space-x-4">
+      <a href="{% url 'interviewapp:dashboard' %}"
+         class="px-6 py-3 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl transition-colors font-medium">
+        Back to Dashboard
+      </a>
+      <a href="{% url 'interviewapp:start_session' %}"
+         class="px-6 py-3 bg-primary-600 text-white hover:bg-primary-700 rounded-xl transition-colors font-medium">
+        Start New Interview
+      </a>
+    </div>
+  </div>
 </div>
 
 <script>
-    function downloadReport() {
-        showToast('Preparing your report download...', 'info');
-        
-        // Simulate report generation
-        setTimeout(() => {
-            showToast('Report downloaded successfully!', 'success');
-            
-            // Create a temporary link to trigger download
-            const link = document.createElement('a');
-            link.href = '#';
-            link.download = `interview_report_${new Date().toISOString().slice(0,10)}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }, 1500);
+  function downloadReport() {
+    showToast && showToast('Preparing your report download...', 'info');
+    setTimeout(() => {
+      showToast && showToast('Report downloaded successfully!', 'success');
+      const link = document.createElement('a');
+      link.href = '#';
+      link.download = `interview_report_${new Date().toISOString().slice(0,10)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }, 1500);
+  }
+
+  // Animate the circular progress using the data-avg attribute
+  document.addEventListener('DOMContentLoaded', function () {
+    const el = document.querySelector('[data-avg]');
+    if (!el) return;
+    const avg = parseFloat(el.getAttribute('data-avg')) || 0;
+    const pct = Math.max(0, Math.min(100, (avg / 10) * 100));
+    const circ = 283; // circumference for r=45
+    const offset = Math.round(circ - (pct / 100) * circ);
+    const circle = document.getElementById('summary-progress-circle') || document.getElementById('progress-circle');
+    if (circle) {
+      circle.style.strokeDashoffset = circ; // start full
+      circle.style.transition = 'stroke-dashoffset 1s ease-out';
+      setTimeout(() => { circle.style.strokeDashoffset = offset; }, 80);
     }
-    
-    // Animate score circles
-    document.addEventListener('DOMContentLoaded', function() {
-        const circles = document.querySelectorAll('circle[stroke-dashoffset]');
-        circles.forEach(circle => {
-            const originalOffset = circle.style.strokeDashoffset;
-            circle.style.strokeDashoffset = '283';
-            setTimeout(() => {
-                circle.style.transition = 'stroke-dashoffset 1.5s ease-out';
-                circle.style.strokeDashoffset = originalOffset;
-            }, 500);
-        });
-    });
+  });
 </script>
 {% endblock %}
