@@ -30,7 +30,7 @@
                 <div>
                     <p class="text-sm text-slate-600 mb-1">Average Score</p>
                     <p class="text-3xl font-bold text-slate-900">
-                        {% if avg_score %}{{ avg_score }}{% else %}--{% endif %}/10
+                        {% if avg_score %}{{ avg_score }}{% else %}--{% endif %}/100
                     </p>
                 </div>
                 <div class="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
@@ -118,13 +118,23 @@
                     
                     <div class="flex items-center space-x-4">
                         <div class="text-right">
-                            <div class="text-2xl font-bold text-slate-900">{{ s.total_score }}/10</div>
+                            <div class="text-2xl font-bold text-slate-900">{{ s.total_score }}/100</div>
                             <div class="text-sm text-slate-600">Score</div>
                         </div>
                         <a href="{% url 'interviewapp:next_question' s.id %}" 
                            class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors">
                             {% if s.completed %}Review{% else %}Continue{% endif %}
                         </a>
+                        <form method="post"
+      action="{% url 'interviewapp:delete_session' s.id %}"
+      onsubmit="return confirm('Delete this session permanently?');">
+  {% csrf_token %}
+  <button type="submit"
+          class="px-3 py-2 text-sm border border-red-600 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition">
+    Delete
+  </button>
+</form>
+
                     </div>
                 </div>
                 
@@ -135,8 +145,13 @@
                         <span>{{ s.answered_count }}/{{ s.total_questions }} questions</span>
                     </div>
                     <div class="w-full bg-slate-200 rounded-full h-2">
-                        <div class="bg-primary-600 h-2 rounded-full transition-all duration-500" 
-                             style="width: {% widthratio s.answered_count s.total_questions 100 %}%"></div>
+                        {% if s.total_questions > 0 %}
+  <div class="bg-primary-600 h-2 rounded-full transition-all duration-500"
+       style="width: {% widthratio s.answered_count s.total_questions 100 %}%">
+  </div>
+{% else %}
+  <div class="bg-primary-600 h-2 rounded-full" style="width: 0%"></div>
+{% endif %}
                     </div>
                 </div>
             </div>

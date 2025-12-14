@@ -46,13 +46,24 @@ class InterviewSession(models.Model):
     
     @property
     def answered_count(self):
-        return self.answers.count()
+        return self.answers.filter(processed=True).count()
+
     
+    @property
+    def total_questions(self):
+        # ✅ total questions in this session
+        return self.answers.count()
+
     @property
     def duration(self):
         if self.started_at and self.completed_at:
             return int((self.completed_at - self.started_at).total_seconds() / 60)
         return 0
+
+    @property
+    def is_completed(self):
+        return self.total_questions > 0 and self.answered_count == self.total_questions
+
     def __str__(self):
         return f"Session {self.id} - {self.role}"
     
@@ -66,7 +77,7 @@ class Answer(models.Model):
     feedback = models.TextField(blank=True)
     processed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-
+    improvement_tips = models.JSONField(null=True, blank=True)
     class Meta:
         unique_together = ('session','index')
 

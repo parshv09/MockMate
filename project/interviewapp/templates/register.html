@@ -1,6 +1,38 @@
 {% extends "base.html" %}
 {% block title %}Create Account - MockInterview.ai{% endblock %}
-
+{% block navbar %}
+<nav class="bg-white shadow-sm border-b border-slate-200">
+    <div class="container mx-auto px-4 max-w-7xl">
+        <div class="flex justify-between items-center h-16">
+            <!-- Logo -->
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 bg-gradient-to-br from-primary-600 to-accent-400 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-lg">AI</span>
+                </div>
+                <a href="{% url 'interviewapp:dashboard' %}" class="text-xl font-semibold text-slate-900 hover:text-primary-700 transition-colors">
+                    MockInterview<span class="text-primary-600">.ai</span>
+                </a>
+            </div>
+            
+            <!-- ONLY LOGIN LINK -->
+            <div class="hidden md:flex items-center space-x-8">
+                  <a href="{% url 'interviewapp:home' %}"  class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors shadow-sm hover:shadow-md">
+                    Home
+                </a>
+                {% if user.is_authenticated %}
+                <a href="{% url 'interviewapp:logout' %}" class="text-slate-600 hover:text-slate-900 transition-colors">
+                    Logout
+                </a>
+                {% else %}
+                <a href="{% url 'interviewapp:login' %}" class="text-slate-700 hover:text-primary-600 transition-colors">
+                    Login
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</nav>
+{% endblock %}
 {% block content %}
 <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-md w-full space-y-8 animate-fade-in">
@@ -20,12 +52,15 @@
         <!-- Registration Form -->
         <div class="bg-white rounded-2xl shadow-lg p-8">
             {% if error %}
-            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+            <div class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg" role="alert">
                 <div class="flex">
-                    <svg class="w-5 h-5 text-red-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                    <svg class="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
                     </svg>
-                    <div class="text-sm text-red-700">{{ error }}</div>
+                    <div>
+                        <h3 class="text-sm font-semibold text-red-800">Registration Error</h3>
+                        <div class="text-sm text-red-700 mt-1">{{ error }}</div>
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -33,23 +68,32 @@
             {% if messages %}
             <div class="mb-6">
                 {% for message in messages %}
-                <div class="p-4 rounded-xl {% if message.tags == 'success' %}bg-green-50 border border-green-200 text-green-700{% else %}bg-blue-50 border border-blue-200 text-blue-700{% endif %}">
+                <div class="p-4 rounded-lg {% if message.tags == 'success' %}bg-green-50 border-l-4 border-green-500{% elif message.tags == 'error' %}bg-red-50 border-l-4 border-red-500{% else %}bg-blue-50 border-l-4 border-blue-500{% endif %}">
                     <div class="flex">
-                        <svg class="w-5 h-5 {% if message.tags == 'success' %}text-green-400{% else %}text-blue-400{% endif %} mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <svg class="w-5 h-5 {% if message.tags == 'success' %}text-green-500{% elif message.tags == 'error' %}text-red-500{% else %}text-blue-500{% endif %} mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                             {% if message.tags == 'success' %}
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                            {% elif message.tags == 'error' %}
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
                             {% else %}
                             <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
                             {% endif %}
                         </svg>
-                        <div class="text-sm">{{ message }}</div>
+                        <div>
+                            <h3 class="text-sm font-semibold {% if message.tags == 'success' %}text-green-800{% elif message.tags == 'error' %}text-red-800{% else %}text-blue-800{% endif %}">
+                                {% if message.tags == 'success' %}Success!{% elif message.tags == 'error' %}Error{% else %}Notice{% endif %}
+                            </h3>
+                            <div class="text-sm {% if message.tags == 'success' %}text-green-700{% elif message.tags == 'error' %}text-red-700{% else %}text-blue-700{% endif %} mt-1">
+                                {{ message }}
+                            </div>
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
             {% endif %}
 
-            <form method="post" class="space-y-6">
+            <form method="post" class="space-y-6" id="registrationForm">
                 {% csrf_token %}
                 
                 <!-- Name Fields -->
@@ -59,16 +103,34 @@
                             First Name
                         </label>
                         <input type="text" name="first_name" id="first_name" required
-                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                               placeholder="John">
+                               class="w-full px-4 py-3 border {% if errors.first_name %}border-red-500{% else %}border-gray-300{% endif %} rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                               placeholder="John"
+                               value="{{ form_data.first_name|default:'' }}">
+                        {% if errors.first_name %}
+                        <p class="mt-1 text-sm text-red-600 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            {{ errors.first_name }}
+                        </p>
+                        {% endif %}
                     </div>
                     <div>
                         <label for="last_name" class="block text-sm font-medium text-gray-700 mb-2">
                             Last Name
                         </label>
                         <input type="text" name="last_name" id="last_name" required
-                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                               placeholder="Doe">
+                               class="w-full px-4 py-3 border {% if errors.last_name %}border-red-500{% else %}border-gray-300{% endif %} rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                               placeholder="Doe"
+                               value="{{ form_data.last_name|default:'' }}">
+                        {% if errors.last_name %}
+                        <p class="mt-1 text-sm text-red-600 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            {{ errors.last_name }}
+                        </p>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -78,8 +140,17 @@
                         Email Address
                     </label>
                     <input type="email" name="email" id="email" required
-                           class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                           placeholder="john.doe@example.com">
+                           class="w-full px-4 py-3 border {% if errors.email %}border-red-500{% else %}border-gray-300{% endif %} rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                           placeholder="john.doe@example.com"
+                           value="{{ form_data.email|default:'' }}">
+                    {% if errors.email %}
+                    <p class="mt-1 text-sm text-red-600 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        {{ errors.email }}
+                    </p>
+                    {% endif %}
                 </div>
 
                 <!-- Username -->
@@ -88,9 +159,20 @@
                         Username
                     </label>
                     <input type="text" name="username" id="username" required
-                           class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                           placeholder="johndoe">
-                    <p class="mt-1 text-sm text-gray-500">This will be your public display name</p>
+                           class="w-full px-4 py-3 border {% if errors.username %}border-red-500{% else %}border-gray-300{% endif %} rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                           placeholder="johndoe"
+                           value="{{ form_data.username|default:'' }}">
+                    <div class="flex justify-between items-center mt-1">
+                        <p class="text-sm text-gray-500">This will be your public display name</p>
+                        {% if errors.username %}
+                        <p class="text-sm text-red-600 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            {{ errors.username }}
+                        </p>
+                        {% endif %}
+                    </div>
                 </div>
 
                 <!-- Password -->
@@ -100,7 +182,7 @@
                     </label>
                     <div class="relative">
                         <input type="password" name="password" id="password" required
-                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                               class="w-full px-4 py-3 border {% if errors.password %}border-red-500{% else %}border-gray-300{% endif %} rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                placeholder="Create a strong password">
                         <button type="button" onclick="togglePassword('password')"
                                 class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
@@ -113,11 +195,26 @@
                     <div class="mt-2">
                         <div class="flex items-center space-x-2">
                             <div id="password-strength" class="h-1 flex-1 bg-gray-200 rounded-full overflow-hidden">
-                                <div id="password-strength-bar" class="h-full bg-red-500 rounded-full w-0"></div>
+                                <div id="password-strength-bar" class="h-full bg-red-500 rounded-full w-0 transition-all duration-300"></div>
                             </div>
-                            <span id="password-strength-text" class="text-xs text-gray-500">Weak</span>
+                            <span id="password-strength-text" class="text-xs font-medium text-gray-500">Weak</span>
                         </div>
                     </div>
+                    {% if errors.password %}
+                    <p class="mt-2 text-sm text-red-600 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        {{ errors.password }}
+                    </p>
+                    {% else %}
+                    <p class="mt-2 text-xs text-gray-500 flex items-center">
+                        <svg class="w-4 h-4 mr-1 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+                        </svg>
+                        Must be at least 8 characters with uppercase, lowercase, and numbers
+                    </p>
+                    {% endif %}
                 </div>
 
                 <!-- Confirm Password -->
@@ -127,7 +224,7 @@
                     </label>
                     <div class="relative">
                         <input type="password" name="confirm_password" id="confirm_password" required
-                               class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                               class="w-full px-4 py-3 border {% if errors.confirm_password %}border-red-500{% else %}border-gray-300{% endif %} rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                placeholder="Confirm your password">
                         <button type="button" onclick="togglePassword('confirm_password')"
                                 class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
@@ -137,6 +234,14 @@
                             </svg>
                         </button>
                     </div>
+                    {% if errors.confirm_password %}
+                    <p class="mt-2 text-sm text-red-600 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        {{ errors.confirm_password }}
+                    </p>
+                    {% endif %}
                 </div>
 
                 <!-- User Type -->
@@ -146,8 +251,9 @@
                     </label>
                     <div class="grid grid-cols-2 gap-3">
                         <label class="relative">
-                            <input type="radio" name="user_type" value="student" class="sr-only peer" checked>
-                            <div class="p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-primary-500 peer-checked:border-primary-500 peer-checked:bg-primary-50 transition-all">
+                            <input type="radio" name="user_type" value="student" class="sr-only peer" 
+                                   {% if form_data.user_type|default:'student' == 'student' %}checked{% endif %}>
+                            <div class="p-4 border-2 {% if errors.user_type %}border-red-200{% else %}border-gray-200{% endif %} rounded-xl cursor-pointer hover:border-primary-500 peer-checked:border-primary-500 peer-checked:bg-primary-50 transition-all">
                                 <div class="flex items-center">
                                     <div class="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
                                         <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -163,8 +269,9 @@
                             </div>
                         </label>
                         <label class="relative">
-                            <input type="radio" name="user_type" value="job_seeker" class="sr-only peer">
-                            <div class="p-4 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-primary-500 peer-checked:border-primary-500 peer-checked:bg-primary-50 transition-all">
+                            <input type="radio" name="user_type" value="job_seeker" class="sr-only peer"
+                                   {% if form_data.user_type == 'job_seeker' %}checked{% endif %}>
+                            <div class="p-4 border-2 {% if errors.user_type %}border-red-200{% else %}border-gray-200{% endif %} rounded-xl cursor-pointer hover:border-primary-500 peer-checked:border-primary-500 peer-checked:bg-primary-50 transition-all">
                                 <div class="flex items-center">
                                     <div class="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
                                         <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -179,6 +286,14 @@
                             </div>
                         </label>
                     </div>
+                    {% if errors.user_type %}
+                    <p class="mt-2 text-sm text-red-600 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        {{ errors.user_type }}
+                    </p>
+                    {% endif %}
                 </div>
 
                 <!-- Target Role (Optional) -->
@@ -189,40 +304,50 @@
                     <select name="target_role" id="target_role"
                             class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                         <option value="">Select a role...</option>
-                        <option value="software_engineer">Software Engineer</option>
-                        <option value="product_manager">Product Manager</option>
-                        <option value="data_scientist">Data Scientist</option>
-                        <option value="ux_designer">UX Designer</option>
-                        <option value="hr_manager">HR Manager</option>
-                        <option value="business_analyst">Business Analyst</option>
-                        <option value="other">Other</option>
+                        <option value="software_engineer" {% if form_data.target_role == 'software_engineer' %}selected{% endif %}>Software Engineer</option>
+                        <option value="product_manager" {% if form_data.target_role == 'product_manager' %}selected{% endif %}>Product Manager</option>
+                        <option value="data_scientist" {% if form_data.target_role == 'data_scientist' %}selected{% endif %}>Data Scientist</option>
+                        <option value="ux_designer" {% if form_data.target_role == 'ux_designer' %}selected{% endif %}>UX Designer</option>
+                        <option value="hr_manager" {% if form_data.target_role == 'hr_manager' %}selected{% endif %}>HR Manager</option>
+                        <option value="business_analyst" {% if form_data.target_role == 'business_analyst' %}selected{% endif %}>Business Analyst</option>
+                        <option value="other" {% if form_data.target_role == 'other' %}selected{% endif %}>Other</option>
                     </select>
                 </div>
 
                 <!-- Terms & Conditions -->
-                <div class="flex items-center">
-                    <input type="checkbox" name="terms" id="terms" required
-                           class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500 border-gray-300">
-                    <label for="terms" class="ml-3 text-sm text-gray-600">
-                        I agree to the 
-                        <a href="#" class="text-primary-600 hover:text-primary-800 font-medium">Terms of Service</a>
-                        and 
-                        <a href="#" class="text-primary-600 hover:text-primary-800 font-medium">Privacy Policy</a>
-                    </label>
+                <div>
+                    <div class="flex items-start">
+                        <input type="checkbox" name="terms" id="terms" required
+                               class="w-4 h-4 mt-1 text-primary-600 rounded focus:ring-primary-500 border-gray-300">
+                        <label for="terms" class="ml-3 text-sm text-gray-600">
+                            I agree to the 
+                            <a href="#" class="text-primary-600 hover:text-primary-800 font-medium hover:underline">Terms of Service</a>
+                            and 
+                            <a href="#" class="text-primary-600 hover:text-primary-800 font-medium hover:underline">Privacy Policy</a>
+                        </label>
+                    </div>
+                    {% if errors.terms %}
+                    <p class="mt-2 text-sm text-red-600 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                        </svg>
+                        {{ errors.terms }}
+                    </p>
+                    {% endif %}
                 </div>
 
                 <!-- Marketing Consent -->
-                <div class="flex items-center">
+                <div class="flex items-start">
                     <input type="checkbox" name="marketing" id="marketing"
-                           class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500 border-gray-300">
+                           class="w-4 h-4 mt-1 text-primary-600 rounded focus:ring-primary-500 border-gray-300">
                     <label for="marketing" class="ml-3 text-sm text-gray-600">
                         Send me tips and updates to improve my interview skills
                     </label>
                 </div>
 
                 <!-- Submit Button -->
-                <button type="submit"
-                        class="w-full bg-primary-600 text-white py-4 px-4 rounded-xl hover:bg-primary-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-transform">
+                <button type="submit" id="submitBtn"
+                        class="w-full bg-primary-600 text-white py-4 px-4 rounded-xl hover:bg-primary-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                     Create Account
                 </button>
             </form>
@@ -261,7 +386,7 @@
             <div class="mt-8 text-center">
                 <p class="text-gray-600">
                     Already have an account?
-                    <a href="{% url 'interviewapp:login' %}" class="text-primary-600 hover:text-primary-800 font-medium">
+                    <a href="{% url 'interviewapp:login' %}" class="text-primary-600 hover:text-primary-800 font-medium hover:underline">
                         Sign in
                     </a>
                 </p>
@@ -291,10 +416,12 @@
 
 <script>
     // Password strength indicator
-    document.getElementById('password').addEventListener('input', function(e) {
+    const passwordInput = document.getElementById('password');
+    const passwordStrengthBar = document.getElementById('password-strength-bar');
+    const passwordStrengthText = document.getElementById('password-strength-text');
+    
+    passwordInput.addEventListener('input', function(e) {
         const password = e.target.value;
-        const strengthBar = document.getElementById('password-strength-bar');
-        const strengthText = document.getElementById('password-strength-text');
         
         let strength = 0;
         let text = 'Weak';
@@ -313,50 +440,117 @@
         } else if (strength === 1) {
             text = 'Fair';
             color = 'bg-yellow-500';
-        } else if (strength === 2 || strength === 3) {
+        } else if (strength === 2) {
             text = 'Good';
             color = 'bg-blue-500';
-        } else if (strength === 4) {
+        } else if (strength === 3) {
             text = 'Strong';
             color = 'bg-green-500';
+        } else if (strength === 4) {
+            text = 'Very Strong';
+            color = 'bg-green-600';
         }
         
-        strengthBar.className = `h-full ${color} rounded-full transition-all duration-300`;
-        strengthBar.style.width = `${(strength / 4) * 100}%`;
-        strengthText.textContent = text;
+        passwordStrengthBar.className = `h-full ${color} rounded-full transition-all duration-300`;
+        passwordStrengthBar.style.width = `${(strength / 4) * 100}%`;
+        passwordStrengthText.textContent = text;
+        passwordStrengthText.className = `text-xs font-medium ${strength === 0 ? 'text-red-500' : strength === 1 ? 'text-yellow-500' : strength === 2 ? 'text-blue-500' : 'text-green-600'}`;
     });
     
     // Toggle password visibility
     function togglePassword(fieldId) {
         const field = document.getElementById(fieldId);
-        const type = field.getAttribute('type') === 'password' ? 'text' : 'password';
-        field.setAttribute('type', type);
+        const button = field.parentNode.querySelector('button');
+        const icon = button.querySelector('svg');
+        
+        if (field.type === 'password') {
+            field.type = 'text';
+            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>';
+        } else {
+            field.type = 'password';
+            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>';
+        }
     }
     
-    // Form validation
-    document.querySelector('form').addEventListener('submit', function(e) {
+    // Form validation with inline errors
+    document.getElementById('registrationForm').addEventListener('submit', function(e) {
+        const form = this;
+        const submitBtn = document.getElementById('submitBtn');
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('confirm_password').value;
         const terms = document.getElementById('terms').checked;
         
-        // Check password match
-        if (password !== confirmPassword) {
-            e.preventDefault();
-            alert('Passwords do not match. Please try again.');
-            document.getElementById('confirm_password').focus();
-            return false;
+        let isValid = true;
+        const errors = {};
+        
+        // Clear previous error styles
+        document.querySelectorAll('.border-red-500').forEach(el => {
+            el.classList.remove('border-red-500');
+            el.classList.add('border-gray-300');
+        });
+        
+        // Password validation
+        if (password.length < 8) {
+            errors.password = 'Password must be at least 8 characters long';
+            isValid = false;
+        } else if (!password.match(/[a-z]/) || !password.match(/[A-Z]/)) {
+            errors.password = 'Password must contain both uppercase and lowercase letters';
+            isValid = false;
+        } else if (!password.match(/\d/)) {
+            errors.password = 'Password must contain at least one number';
+            isValid = false;
         }
         
-        // Check terms acceptance
+        // Confirm password validation
+        if (password !== confirmPassword) {
+            errors.confirm_password = 'Passwords do not match';
+            isValid = false;
+        }
+        
+        // Terms validation
         if (!terms) {
+            errors.terms = 'You must accept the Terms of Service and Privacy Policy';
+            isValid = false;
+        }
+        
+        // Show errors inline
+        if (!isValid) {
             e.preventDefault();
-            alert('You must accept the Terms of Service and Privacy Policy to continue.');
-            document.getElementById('terms').focus();
+            
+            // Show errors in UI
+            for (const [field, message] of Object.entries(errors)) {
+                const input = document.getElementById(field);
+                if (input) {
+                    input.classList.remove('border-gray-300');
+                    input.classList.add('border-red-500');
+                    
+                    // Create or update error message
+                    let errorElement = input.parentNode.querySelector('.text-red-600');
+                    if (!errorElement) {
+                        errorElement = document.createElement('p');
+                        errorElement.className = 'mt-2 text-sm text-red-600 flex items-center';
+                        errorElement.innerHTML = `
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            ${message}
+                        `;
+                        input.parentNode.appendChild(errorElement);
+                    }
+                }
+            }
+            
+            // Scroll to first error
+            const firstError = document.querySelector('.border-red-500');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstError.focus();
+            }
+            
             return false;
         }
         
         // Show loading state
-        const submitBtn = this.querySelector('button[type="submit"]');
         submitBtn.innerHTML = `
             <svg class="animate-spin h-5 w-5 text-white mx-auto" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -365,6 +559,26 @@
             Creating account...
         `;
         submitBtn.disabled = true;
+    });
+    
+    // Real-time validation
+    document.querySelectorAll('input, select').forEach(input => {
+        input.addEventListener('blur', function() {
+            if (this.value.trim() === '' && this.hasAttribute('required')) {
+                this.classList.add('border-red-500');
+            } else {
+                this.classList.remove('border-red-500');
+            }
+        });
+        
+        input.addEventListener('input', function() {
+            this.classList.remove('border-red-500');
+            // Remove error message if it exists
+            const errorElement = this.parentNode.querySelector('.text-red-600');
+            if (errorElement) {
+                errorElement.remove();
+            }
+        });
     });
 </script>
 
@@ -386,11 +600,22 @@
     input[type="checkbox"]:checked {
         background-color: #0ea5e9;
         border-color: #0ea5e9;
+        background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
     }
     
     /* Focus styles */
     input:focus, select:focus {
         box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+    }
+    
+    /* Error input focus */
+    .border-red-500:focus {
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+    
+    /* Smooth transitions */
+    input, select, button {
+        transition: all 0.2s ease;
     }
 </style>
 {% endblock %}

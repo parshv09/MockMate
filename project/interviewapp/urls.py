@@ -16,4 +16,11 @@ urlpatterns = [
     path('session/<int:session_id>/end/', views.end_session, name='end_session'),      # NEW
     path('session/<int:session_id>/summary/', views.session_summary, name='session_summary'),
     path('start-simple/', views.start_session_simple, name='start_session_simple'),
+    path("session/<int:session_id>/delete/", views.delete_session, name="delete_session"),
+    path(
+    "session/<int:session_id>/download/",
+    views.download_report,
+    name="download_report"
+),
+
 ]

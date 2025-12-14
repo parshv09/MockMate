@@ -14,6 +14,11 @@ import logging
 from django.contrib import messages
 from .qgen_groq import generate_questions_groq, signature_of_text  # qgen_groq from earlier
 from .views_helpers import generate_question_stub  # if you keep stub in a helper; otherwise use local stub
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+from textwrap import wrap
+from django.http import HttpResponse
 ROLE_MAP = {
     'tech': 'Technical',
     'hr': 'Human Resources',
@@ -72,13 +77,14 @@ def dashboard(request):
     # Calculate average score
     total_scores = []
     total_answered = 0
-    for session in sessions:
-        answers_with_score = session.answers.filter(score__isnull=False)
-        if answers_with_score.exists():
-            total_scores.append(sum(a.score for a in answers_with_score) / answers_with_score.count())
-        total_answered += session.answers.count()
-    
-    avg_score = sum(total_scores) / len(total_scores) if total_scores else None
+    for s in sessions:
+        total_answered += s.answered_count  # ✅ property access
+
+        if s.total_score is not None:
+            total_scores.append(s.total_score)
+
+    avg_score = round(sum(total_scores) / len(total_scores), 2) if total_scores else None
+
     
     return render(request, 'dashboard.html', {
         'sessions': sessions,
@@ -229,42 +235,37 @@ def next_question(request, session_id):
 def submit_answer(request, session_id):
     if request.method != 'POST':
         return redirect('interviewapp:next_question', session_id=session_id)
+
     session = get_object_or_404(InterviewSession, id=session_id)
     if session.user != request.user:
         return HttpResponseForbidden()
+
     answer_id = request.POST.get('answer_id')
     ans = get_object_or_404(Answer, id=answer_id, session=session)
+
     form = AnswerForm(request.POST, request.FILES)
     if form.is_valid():
-        ans.answer_text = form.cleaned_data.get('answer_text','').strip()
+        ans.answer_text = form.cleaned_data.get('answer_text', '').strip()
+
         result = analyze_transcript(ans.answer_text, ans.question)
-        ans.score = result['score']
-        ans.feedback = result['feedback']
+
+        ans.score = result.get('score')
+        ans.feedback = result.get('feedback', '')
+
+        # ✅ THIS IS THE MISSING LINE
+        ans.improvement_tips = result.get('improvement_tips', [])
+
         ans.processed = True
         ans.save()
-        return redirect('interviewapp:next_question', session_id=session.id)
-    return render(request, 'interview.html', {'question': ans.question, 'answer_id': ans.id, 'form': form, 'session': session})
 
-@login_required
-def submit_answer(request, session_id):
-    if request.method != 'POST':
-        return redirect('interviewapp:next_question', session_id=session_id)
-    session = get_object_or_404(InterviewSession, id=session_id)
-    if session.user != request.user:
-        return HttpResponseForbidden()
-    answer_id = request.POST.get('answer_id')
-    ans = get_object_or_404(Answer, id=answer_id, session=session)
-    form = AnswerForm(request.POST, request.FILES)
-    if form.is_valid():
-        ans.answer_text = form.cleaned_data.get('answer_text','').strip()
-        result = analyze_transcript(ans.answer_text, ans.question)
-        ans.score = result['score']
-        ans.feedback = result['feedback']
-        ans.processed = True
-        ans.save()
         return redirect('interviewapp:next_question', session_id=session.id)
-    return render(request, 'interview.html', {'question': ans.question, 'answer_id': ans.id, 'form': form, 'session': session})
 
+    return render(request, 'interview.html', {
+        'question': ans.question,
+        'answer_id': ans.id,
+        'form': form,
+        'session': session
+    })
 @login_required
 def skip_question(request, session_id):
     session = get_object_or_404(InterviewSession, id=session_id)
@@ -383,6 +384,7 @@ def session_summary(request, session_id):
             "overall_tip": "Practice concise explanations, and focus on weaker areas identified above.",
             "resources": ["Review domain fundamentals", "Practice mock interviews", "Study common patterns"]
         }
+        print(session.total_score)
 
     # Render the template with both LLM suggestions and the simple parsed lists
     return render(request, 'summary.html', {
@@ -457,66 +459,260 @@ from django.contrib.auth.models import User
 from django.contrib.auth import login
 from django.contrib import messages
 
+from django.contrib.auth.models import User
+from django.contrib.auth import login
+from django.contrib import messages
+
 def register(request):
     """
-    Handle user registration
+    Handle user registration with proper error handling
     """
     if request.method == 'POST':
         # Get form data
-        first_name = request.POST.get('first_name', '').strip()
-        last_name = request.POST.get('last_name', '').strip()
-        email = request.POST.get('email', '').strip()
-        username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '').strip()
-        confirm_password = request.POST.get('confirm_password', '').strip()
-        user_type = request.POST.get('user_type', 'student')
-        target_role = request.POST.get('target_role', '')
+        form_data = {
+            'first_name': request.POST.get('first_name', '').strip(),
+            'last_name': request.POST.get('last_name', '').strip(),
+            'email': request.POST.get('email', '').strip(),
+            'username': request.POST.get('username', '').strip(),
+            'password': request.POST.get('password', '').strip(),
+            'confirm_password': request.POST.get('confirm_password', '').strip(),
+            'user_type': request.POST.get('user_type', 'student'),
+            'target_role': request.POST.get('target_role', ''),
+        }
+        
+        errors = {}
         
         # Validation
-        errors = []
+        if not form_data['first_name']:
+            errors['first_name'] = 'First name is required.'
         
-        if not all([first_name, last_name, email, username, password, confirm_password]):
-            errors.append("All fields are required.")
+        if not form_data['last_name']:
+            errors['last_name'] = 'Last name is required.'
         
-        if password != confirm_password:
-            errors.append("Passwords do not match.")
+        if not form_data['email']:
+            errors['email'] = 'Email address is required.'
+        elif not '@' in form_data['email']:
+            errors['email'] = 'Please enter a valid email address.'
+        elif User.objects.filter(email=form_data['email']).exists():
+            errors['email'] = 'This email is already registered.'
         
-        if len(password) < 8:
-            errors.append("Password must be at least 8 characters long.")
+        if not form_data['username']:
+            errors['username'] = 'Username is required.'
+        elif len(form_data['username']) < 3:
+            errors['username'] = 'Username must be at least 3 characters.'
+        elif User.objects.filter(username=form_data['username']).exists():
+            errors['username'] = 'This username is already taken.'
         
-        if User.objects.filter(username=username).exists():
-            errors.append("Username already exists.")
+        if not form_data['password']:
+            errors['password'] = 'Password is required.'
+        elif len(form_data['password']) < 8:
+            errors['password'] = 'Password must be at least 8 characters.'
+        elif not any(c.isupper() for c in form_data['password']):
+            errors['password'] = 'Password must contain at least one uppercase letter.'
+        elif not any(c.islower() for c in form_data['password']):
+            errors['password'] = 'Password must contain at least one lowercase letter.'
+        elif not any(c.isdigit() for c in form_data['password']):
+            errors['password'] = 'Password must contain at least one number.'
         
-        if User.objects.filter(email=email).exists():
-            errors.append("Email already registered.")
+        if not form_data['confirm_password']:
+            errors['confirm_password'] = 'Please confirm your password.'
+        elif form_data['password'] != form_data['confirm_password']:
+            errors['confirm_password'] = 'Passwords do not match.'
+        
+        if not request.POST.get('terms'):
+            errors['terms'] = 'You must accept the Terms of Service and Privacy Policy.'
         
         if errors:
-            return render(request, 'register.html', {'error': ' '.join(errors)})
+            # Return form with errors and preserved data
+            return render(request, 'register.html', {
+                'errors': errors,
+                'form_data': form_data
+            })
         
         try:
             # Create user
             user = User.objects.create_user(
-                username=username,
-                email=email,
-                password=password,
-                first_name=first_name,
-                last_name=last_name
+                username=form_data['username'],
+                email=form_data['email'],
+                password=form_data['password'],
+                first_name=form_data['first_name'],
+                last_name=form_data['last_name']
             )
             
-            # You can store additional user info in a UserProfile model if needed
-            # UserProfile.objects.create(user=user, user_type=user_type, target_role=target_role)
+            # Optional: Create UserProfile
+            # UserProfile.objects.create(
+            #     user=user,
+            #     user_type=form_data['user_type'],
+            #     target_role=form_data['target_role']
+            # )
             
             # Log the user in
             login(request, user)
             
-            # Send welcome message
-            messages.success(request, f"Welcome {first_name}! Your account has been created successfully.")
+            # Success message
+            messages.success(request, f"Welcome {form_data['first_name']}! Your account has been created successfully.")
             
             # Redirect to dashboard
             return redirect('interviewapp:dashboard')
             
         except Exception as e:
-            return render(request, 'register.html', {'error': f"An error occurred: {str(e)}"})
+            # Log the error for debugging
+            print(f"Registration error: {e}")
+            
+            # User-friendly error message
+            return render(request, 'register.html', {
+                'error': 'An unexpected error occurred. Please try again.',
+                'form_data': form_data
+            })
     
-    # GET request - show registration form
+    # GET request - show empty registration form
     return render(request, 'register.html')
+
+@login_required
+def delete_session(request, session_id):
+    session = get_object_or_404(InterviewSession, id=session_id)
+
+    # 🔒 Permission check
+    if session.user != request.user:
+        return HttpResponseForbidden("You are not allowed to delete this session.")
+
+    # Allow only POST (safety)
+    if request.method == "POST":
+        session.delete()
+        messages.success(request, "Interview session deleted successfully.")
+        return redirect("interviewapp:dashboard")
+
+    # If GET request → redirect (avoid accidental deletes)
+    return redirect("interviewapp:dashboard")
+
+
+from django.http import HttpResponse, HttpResponseForbidden
+from django.shortcuts import get_object_or_404
+from django.contrib.auth.decorators import login_required
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from textwrap import wrap
+
+@login_required
+def download_report(request, session_id):
+    session = get_object_or_404(InterviewSession, id=session_id)
+
+    # 🔒 Security check
+    if session.user != request.user:
+        return HttpResponseForbidden()
+
+    answers = session.answers.select_related('question').all().order_by('index')
+
+    # Recalculate average score (same logic as summary)
+    scores = [a.score for a in answers if a.score is not None]
+    avg = (sum(scores) / len(scores)) if scores else 0
+
+    # Duration
+    duration = 0
+    if session.started_at and session.completed_at:
+        duration = int((session.completed_at - session.started_at).total_seconds() / 60)
+
+    # Suggestions (strengths, improvements, tips)
+    suggestions = getattr(session, "suggestions_json", None) or {}
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'attachment; filename="Interview_Report_Session_{session.id}.pdf"'
+    )
+
+    pdf = canvas.Canvas(response, pagesize=A4)
+    width, height = A4
+
+    x_margin = 40
+    y = height - 50
+
+    def draw_block(text, y_pos, bold=False):
+        pdf.setFont("Helvetica-Bold" if bold else "Helvetica", 10)
+        for line in wrap(text, 95):
+            pdf.drawString(x_margin, y_pos, line)
+            y_pos -= 14
+        return y_pos
+
+    # ================= TITLE =================
+    pdf.setFont("Helvetica-Bold", 20)
+    pdf.drawString(x_margin, y, "AI Mock Interview Report")
+    y -= 35
+
+    # ================= SESSION INFO =================
+    y = draw_block(f"Candidate: {session.user.username}", y)
+    y = draw_block(f"Role: {session.role}", y)
+    y = draw_block(f"Date: {session.started_at.strftime('%d %b %Y')}", y)
+    y = draw_block(f"Duration: {duration} minutes", y)
+    y = draw_block(f"Average Score: {round(avg, 2)}/10", y)
+    y -= 20
+
+    # ================= QUESTIONS =================
+    pdf.setFont("Helvetica-Bold", 14)
+    pdf.drawString(x_margin, y, "Question-wise Evaluation")
+    y -= 20
+
+    for idx, a in enumerate(answers, start=1):
+        if y < 160:
+            pdf.showPage()
+            y = height - 50
+
+        # Question
+        y = draw_block(f"Q{idx}. {a.question.text}", y, bold=True)
+
+        # Answer
+        y = draw_block(
+            f"Your Answer: {a.answer_text or 'No answer provided'}", y
+        )
+
+        # Score
+        y = draw_block(f"Score: {a.score}/10", y)
+
+        # Feedback
+        y = draw_block(
+            f"AI Feedback: {a.feedback or 'N/A'}", y
+        )
+
+        # ✅ Improvement Tips (IMPORTANT PART)
+        tips = getattr(a, "improvement_tips", None)
+        if tips:
+            y = draw_block("Improvement Tips:", y, bold=True)
+
+            if isinstance(tips, (list, tuple)):
+                for tip in tips:
+                    y = draw_block(f"- {tip}", y)
+            else:
+                y = draw_block(f"- {tips}", y)
+
+        y -= 12
+
+    # ================= OVERALL SUGGESTIONS =================
+    if suggestions:
+        if y < 220:
+            pdf.showPage()
+            y = height - 50
+
+        pdf.setFont("Helvetica-Bold", 14)
+        pdf.drawString(x_margin, y, "Performance Insights")
+        y -= 20
+
+        y = draw_block("Strengths:", y, bold=True)
+        for s in suggestions.get("strengths", []):
+            y = draw_block(f"- {s}", y)
+
+        y -= 10
+        y = draw_block("Improvements:", y, bold=True)
+        for i in suggestions.get("improvements", []):
+            y = draw_block(f"- {i}", y)
+
+        y -= 10
+        y = draw_block("Overall Tip:", y, bold=True)
+        y = draw_block(suggestions.get("overall_tip", ""), y)
+
+        y -= 10
+        y = draw_block("Recommended Resources:", y, bold=True)
+        for r in suggestions.get("resources", []):
+            y = draw_block(f"- {r}", y)
+
+    pdf.showPage()
+    pdf.save()
+    return response

@@ -74,7 +74,7 @@ def _is_math_question_textual(text: str) -> bool:
         return True
     return False
 
-def _build_prompt(role: str, n: int, difficulty: int = 3, math_needed: int = 0) -> str:
+def _build_prompt(role: str, n: int, difficulty: int = 2, math_needed: int = 0) -> str:
     """
     Build a JSON-only prompt. If math_needed > 0 we require that many math items in this batch.
     If math_needed == 0, request zero math items.
@@ -89,7 +89,7 @@ def _build_prompt(role: str, n: int, difficulty: int = 3, math_needed: int = 0) 
 You are a careful interview question generator.
 
 TASK:
-Generate EXACTLY {n} unique interview questions for the role "{role}" and difficulty {difficulty}.
+Generate EXACTLY {n} unique interview questions from "{role}" interviewer commonly asks to candidate and difficulty {difficulty}.
 Return ONLY a JSON array. Each entry MUST be an object with keys:
   - "text": string - the question text (≤ 300 chars). For math questions include numeric data and a clear ask.
   - "keywords": string - comma-separated keywords.

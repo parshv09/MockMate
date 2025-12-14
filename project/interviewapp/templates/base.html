@@ -60,7 +60,10 @@
 <body class="font-sans bg-slate-50 text-slate-900 min-h-screen flex flex-col">
     
     <!-- Navigation -->
+    <!-- base.html - around line where navbar is included -->
+{% block navbar %}
     {% include 'partials/nav.html' %}
+{% endblock %}
     
     <!-- Messages Container -->
     <div id="messages-container" class="container mx-auto px-4 mt-4 max-w-7xl">

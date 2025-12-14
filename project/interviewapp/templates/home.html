@@ -91,6 +91,12 @@
         * {
             transition: all 0.3s ease;
         }
+        @media (min-width: 768px) {
+    .md\:py-32 {
+        padding-top: 5rem;
+        padding-bottom: 8rem;
+    }
+}
     </style>
 </head>
 <body class="font-sans bg-white text-gray-800">
@@ -117,7 +123,7 @@
                     <a href="#why-choose" class="text-gray-600 hover:text-primary-600 font-medium">Why Choose Us</a>
                     <a href="#demo" class="text-gray-600 hover:text-primary-600 font-medium">Demo</a>
                     <a href="{% url 'interviewapp:login' %}" class="text-gray-600 hover:text-primary-600 font-medium">Login</a>
-                    <a href="{% url 'interviewapp:start_session' %}" 
+                    <a href="{% url 'interviewapp:register' %}" 
                        class="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 font-medium">
                         Start Interview
                     </a>
@@ -143,7 +149,7 @@
         <div class="absolute bottom-20 right-10 w-72 h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float" style="animation-delay: 2s"></div>
         <div class="absolute top-1/2 left-1/3 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float" style="animation-delay: 4s"></div>
         
-        <div class="container mx-auto px-4 py-20 md:py-32 relative z-10">
+        <div class="container mx-auto px-4 py-20 md:py-32 relative z-10" style="padding-top: 5rem; padding-bottom: 8rem;" class="md:pt-24 md:pb-32">
             <div class="max-w-4xl mx-auto text-center animate-fade-in">
                 <!-- Badge -->
                 <div class="inline-flex items-center px-4 py-2 rounded-full bg-primary-100 text-primary-700 font-medium mb-6 animate-slide-up">
@@ -163,7 +169,7 @@
                 
                 <!-- CTA Buttons -->
                 <div class="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up" style="animation-delay: 0.3s">
-                    <a href="{% url 'interviewapp:start_session' %}" 
+                    <a href="{% url 'interviewapp:login' %}" 
                        class="bg-primary-600 text-white px-8 py-4 rounded-xl hover:bg-primary-700 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all flex items-center justify-center">
                         Start Mock Interview - It's Free
                         <svg class="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -509,11 +515,11 @@
                 </p>
                 
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                    <a href="{% url 'interviewapp:start_session' %}" 
+                    <a href="{% url 'interviewapp:register' %}" 
                        class="bg-white text-primary-600 px-10 py-4 rounded-xl hover:bg-gray-100 font-bold text-lg shadow-2xl transform hover:-translate-y-1 transition-all">
                         Begin Your Mock Interview - Free
                     </a>
-                    <a href="{% url 'interviewapp:dashboard' %}" 
+                    <a href="{% url 'interviewapp:login' %}" 
                        class="border-2 border-white text-white px-10 py-4 rounded-xl hover:bg-white/10 font-bold text-lg">
                         View Dashboard
                     </a>
@@ -550,7 +556,7 @@
                     <div>
                         <h4 class="font-bold mb-4">Platform</h4>
                         <ul class="space-y-2 text-gray-400">
-                            <li><a href="{% url 'interviewapp:dashboard' %}" class="hover:text-white">Dashboard</a></li>
+                            <li><a href="{% url 'interviewapp:login' %}" class="hover:text-white">Dashboard</a></li>
                             <li><a href="#features" class="hover:text-white">Features</a></li>
                             <li><a href="#how-it-works" class="hover:text-white">How It Works</a></li>
                             <li><a href="#demo" class="hover:text-white">Demo</a></li>
@@ -561,7 +567,7 @@
                         <h4 class="font-bold mb-4">Account</h4>
                         <ul class="space-y-2 text-gray-400">
                             <li><a href="{% url 'interviewapp:login' %}" class="hover:text-white">Login</a></li>
-                            <li><a href="{% url 'interviewapp:start_session' %}" class="hover:text-white">Start Interview</a></li>
+                            <li><a href="{% url 'interviewapp:register' %}" class="hover:text-white">Start Interview</a></li>
                             <li><a href="#" class="hover:text-white">Privacy Policy</a></li>
                             <li><a href="#" class="hover:text-white">Terms</a></li>
                         </ul>
