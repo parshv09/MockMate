@@ -1,5 +1,5 @@
-{% extends "base.html" %} {% block title %}Dashboard - AI Mock Interview{%
-endblock %} {% block content %}
+{% extends "base.html" %} {% block title %}Dashboard - AI Mock Interview{%endblock %} 
+{% block content %}
 <div class="animate-fade-in">
   <!-- Welcome Section -->
   <div class="mb-8">
@@ -181,8 +181,7 @@ endblock %} {% block content %}
               {% endif %}
             </div>
             <div class="text-sm text-slate-600">
-              Started: {{ s.started_at|date:"M d, Y H:i" }} {% if s.completed_at
-              %} • Completed: {{ s.completed_at|date:"M d, Y H:i" }} {% endif %}
+              Started: {{ s.started_at|date:"M d, Y H:i" }} {% if s.completed_at%} • Completed: {{ s.completed_at|date:"M d, Y H:i" }} {% endif %}
             </div>
           </div>
 
