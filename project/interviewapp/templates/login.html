@@ -1,111 +1,170 @@
-{% extends "base.html" %}
-
-{% block title %}Login - AI Mock Interview{% endblock %}
-{% block navbar %}
+{% extends "base.html" %} {% block title %}Login - AI Mock Interview{% endblock
+%} {% block navbar %}
 <nav class="bg-white shadow-sm border-b border-slate-200">
-    <div class="container mx-auto px-4 max-w-7xl">
-        <div class="flex justify-between items-center h-16">
-            <!-- Logo -->
-            <div class="flex items-center space-x-2">
-                <div class="w-8 h-8 bg-gradient-to-br from-primary-600 to-accent-400 rounded-lg flex items-center justify-center">
-                    <span class="text-white font-bold text-lg">AI</span>
-                </div>
-                <a href="{% url 'interviewapp:dashboard' %}" class="text-xl font-semibold text-slate-900 hover:text-primary-700 transition-colors">
-                    MockInterview<span class="text-primary-600">.ai</span>
-                </a>
-            </div>
-            
-            <!-- ONLY LOGIN LINK -->
-            <div class="hidden md:flex items-center space-x-8">
-                  <a href="{% url 'interviewapp:home' %}"  class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors shadow-sm hover:shadow-md">
-                    Home
-                </a>
-                {% if user.is_authenticated %}
-                <a href="{% url 'interviewapp:logout' %}" class="text-slate-600 hover:text-slate-900 transition-colors">
-                    Logout
-                </a>
-                {% else %}
-                <a href="{% url 'interviewapp:register' %}" class="text-slate-700 hover:text-primary-600 transition-colors">
-                    Register
-                </a>
-                {% endif %}
-            </div>
+  <div class="container mx-auto px-4 max-w-7xl">
+    <div class="flex justify-between items-center h-16">
+      <!-- Logo -->
+      <div class="flex items-center space-x-2">
+        <div
+          class="w-8 h-8 bg-gradient-to-br from-primary-600 to-accent-400 rounded-lg flex items-center justify-center"
+        >
+          <span class="text-white font-bold text-lg">AI</span>
         </div>
+        <a
+          href="{% url 'interviewapp:dashboard' %}"
+          class="text-xl font-semibold text-slate-900 hover:text-primary-700 transition-colors"
+        >
+          MockInterview<span class="text-primary-600">.ai</span>
+        </a>
+      </div>
+
+      <!-- ONLY LOGIN LINK -->
+      <div class="hidden md:flex items-center space-x-8">
+        <a
+          href="{% url 'interviewapp:home' %}"
+          class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors shadow-sm hover:shadow-md"
+        >
+          Home
+        </a>
+        {% if user.is_authenticated %}
+        <a
+          href="{% url 'interviewapp:logout' %}"
+          class="text-slate-600 hover:text-slate-900 transition-colors"
+        >
+          Logout
+        </a>
+        {% else %}
+        <a
+          href="{% url 'interviewapp:register' %}"
+          class="text-slate-700 hover:text-primary-600 transition-colors"
+        >
+          Register
+        </a>
+        {% endif %}
+      </div>
     </div>
+  </div>
 </nav>
-{% endblock %}
-{% block content %}
-<div class="min-h-[calc(100vh-200px)] flex items-center justify-center py-12 px-4">
-    <div class="max-w-md w-full animate-fade-in">
-        <div class="text-center mb-8">
-            <div class="w-16 h-16 bg-gradient-to-br from-primary-600 to-accent-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <span class="text-white text-2xl font-bold">AI</span>
-            </div>
-            <h1 class="text-3xl font-bold text-slate-900">Welcome back</h1>
-            <p class="text-slate-600 mt-2">Sign in to continue your interview preparation</p>
-        </div>
-        
-        <div class="bg-white rounded-2xl shadow-lg p-8">
-            {% if error %}
-            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-800">
-                {{ error }}
-            </div>
-            {% endif %}
-            
-            <form method="post" class="space-y-6">
-                {% csrf_token %}
-                
-                <div>
-                    <label for="username" class="block text-sm font-medium text-slate-700 mb-2">Username</label>
-                    <input type="text" name="username" id="username" required
-                           class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                           placeholder="Enter your username">
-                </div>
-                
-                <div>
-                    <label for="password" class="block text-sm font-medium text-slate-700 mb-2">Password</label>
-                    <input type="password" name="password" id="password" required
-                           class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                           placeholder="Enter your password">
-                </div>
-                
-                <div class="flex items-center justify-between">
-                    <label class="flex items-center">
-                        <input type="checkbox" name="remember" class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500 border-slate-300">
-                        <span class="ml-2 text-sm text-slate-600">Remember me</span>
-                    </label>
-                    <a href="#" class="text-sm text-primary-600 hover:text-primary-800">Forgot password?</a>
-                </div>
-                
-                <button type="submit"
-                        class="w-full bg-primary-600 text-white py-3 px-4 rounded-xl hover:bg-primary-700 transition-colors font-semibold shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-transform">
-                    Sign In
-                </button>
-            </form>
-            
-            <div class="mt-8 pt-8 border-t border-slate-200">
-                <p class="text-center text-slate-600 mb-4">Or continue with</p>
-                <div class="grid grid-cols-2 gap-3">
-                    <button type="button" class="flex items-center justify-center space-x-2 py-3 px-4 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.666-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.787-.94 1.324-2.245 1.171-3.54-1.133.052-2.518.754-3.334 1.701-.735.85-1.389 2.207-1.208 3.514 1.26.091 2.544-.597 3.371-1.675z"/>
-                        </svg>
-                        <span>Apple</span>
-                    </button>
-                    <button type="button" class="flex items-center justify-center space-x-2 py-3 px-4 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
-                        </svg>
-                        <span>Google</span>
-                    </button>
-                </div>
-            </div>
-            
-            <p class="mt-8 text-center text-slate-600">
-                Don't have an account? 
-                <a href="{% url 'interviewapp:register' %}" class="text-primary-600 hover:text-primary-800 font-medium">Sign up</a>
-            </p>
-        </div>
+{% endblock %} {% block content %}
+<div
+  class="min-h-[calc(100vh-200px)] flex items-center justify-center py-12 px-4"
+>
+  <div class="max-w-md w-full animate-fade-in">
+    <div class="text-center mb-8">
+      <div
+        class="w-16 h-16 bg-gradient-to-br from-primary-600 to-accent-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg"
+      >
+        <span class="text-white text-2xl font-bold">AI</span>
+      </div>
+      <h1 class="text-3xl font-bold text-slate-900">Welcome back</h1>
+      <p class="text-slate-600 mt-2">
+        Sign in to continue your interview preparation
+      </p>
     </div>
+
+    <div class="bg-white rounded-2xl shadow-lg p-8">
+      {% if error %}
+      <div
+        class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-800"
+      >
+        {{ error }}
+      </div>
+      {% endif %}
+
+      <form method="post" class="space-y-6">
+        {% csrf_token %}
+
+        <div>
+          <label
+            for="username"
+            class="block text-sm font-medium text-slate-700 mb-2"
+            >Username</label
+          >
+          <input
+            type="text"
+            name="username"
+            id="username"
+            required
+            class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+            placeholder="Enter your username"
+          />
+        </div>
+
+        <div>
+          <label
+            for="password"
+            class="block text-sm font-medium text-slate-700 mb-2"
+            >Password</label
+          >
+          <input
+            type="password"
+            name="password"
+            id="password"
+            required
+            class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+            placeholder="Enter your password"
+          />
+        </div>
+
+        <div class="flex items-center justify-between">
+          <label class="flex items-center">
+            <input
+              type="checkbox"
+              name="remember"
+              class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500 border-slate-300"
+            />
+            <span class="ml-2 text-sm text-slate-600">Remember me</span>
+          </label>
+          <a href="#" class="text-sm text-primary-600 hover:text-primary-800"
+            >Forgot password?</a
+          >
+        </div>
+
+        <button
+          type="submit"
+          class="w-full bg-primary-600 text-white py-3 px-4 rounded-xl hover:bg-primary-700 transition-colors font-semibold shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-transform"
+        >
+          Sign In
+        </button>
+      </form>
+
+      <div class="mt-8 pt-8 border-t border-slate-200">
+        <p class="text-center text-slate-600 mb-4">Or continue with</p>
+        <div class="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            class="flex items-center justify-center space-x-2 py-3 px-4 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors"
+          >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.666-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.787-.94 1.324-2.245 1.171-3.54-1.133.052-2.518.754-3.334 1.701-.735.85-1.389 2.207-1.208 3.514 1.26.091 2.544-.597 3.371-1.675z"
+              />
+            </svg>
+            <span>Apple</span>
+          </button>
+          <button
+            type="button"
+            class="flex items-center justify-center space-x-2 py-3 px-4 border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors"
+          >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
+              />
+            </svg>
+            <span>Google</span>
+          </button>
+        </div>
+      </div>
+
+      <p class="mt-8 text-center text-slate-600">
+        Don't have an account?
+        <a
+          href="{% url 'interviewapp:register' %}"
+          class="text-primary-600 hover:text-primary-800 font-medium"
+          >Sign up</a
+        >
+      </p>
+    </div>
+  </div>
 </div>
 {% endblock %}

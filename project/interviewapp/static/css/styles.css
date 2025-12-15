@@ -6,6 +6,7 @@
         transform: translateY(1rem);
         opacity: 0;
     }
+
     to {
         transform: translateY(0);
         opacity: 1;
@@ -17,6 +18,7 @@
         transform: translateY(-1rem);
         opacity: 0;
     }
+
     to {
         transform: translateY(0);
         opacity: 1;
@@ -27,6 +29,7 @@
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
@@ -37,6 +40,7 @@
         transform: scale(0.9);
         opacity: 0;
     }
+
     to {
         transform: scale(1);
         opacity: 1;
@@ -44,9 +48,12 @@
 }
 
 @keyframes pulseSubtle {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 1;
     }
+
     50% {
         opacity: 0.7;
     }
@@ -114,12 +121,12 @@
     .no-print {
         display: none !important;
     }
-    
+
     body {
         background: white !important;
         color: black !important;
     }
-    
+
     .bg-white {
         background: white !important;
         border: 1px solid #E2E8F0 !important;
@@ -131,7 +138,7 @@
     .bg-primary-600 {
         background-color: #3730A3 !important;
     }
-    
+
     .text-primary-600 {
         color: #3730A3 !important;
     }
@@ -139,6 +146,7 @@
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {

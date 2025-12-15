@@ -15,12 +15,8 @@ urlpatterns = [
     path('session/<int:session_id>/skip/', views.skip_question, name='skip_question'),  # NEW
     path('session/<int:session_id>/end/', views.end_session, name='end_session'),      # NEW
     path('session/<int:session_id>/summary/', views.session_summary, name='session_summary'),
-    path('start-simple/', views.start_session_simple, name='start_session_simple'),
+    # path('start-simple/', views.start_session_simple, name='start_session_simple'),
     path("session/<int:session_id>/delete/", views.delete_session, name="delete_session"),
-    path(
-    "session/<int:session_id>/download/",
-    views.download_report,
-    name="download_report"
-),
+    path("session/<int:session_id>/download/",views.download_report,name="download_report"),
 
 ]

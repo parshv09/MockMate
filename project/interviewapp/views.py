@@ -16,15 +16,20 @@ from .qgen_groq import generate_questions_groq, signature_of_text  # qgen_groq f
 from .views_helpers import generate_question_stub  # if you keep stub in a helper; otherwise use local stub
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from reportlab.lib.units import inch
+# from reportlab.lib.units import inch
 from textwrap import wrap
 from django.http import HttpResponse
+from django.contrib.auth.models import User
+from django.contrib.auth import login
+from django.contrib import messages
+from .qgen_groq import generate_session_suggestions
+from django.http import HttpResponse, HttpResponseForbidden
+
 ROLE_MAP = {
     'tech': 'Technical',
     'hr': 'Human Resources',
     'apt': 'Aptitude',
     'beh': 'Behavioral',
-    # add any other possible keys your form sends
 }
 
 def home_page(request):
@@ -52,6 +57,112 @@ def generate_question_stub(role, difficulty=3):
 def signature_of_text(text):
     norm = " ".join(text.lower().split())
     return hashlib.sha256(norm.encode()).hexdigest()
+
+
+def register(request):
+    """
+    Handle user registration with proper error handling
+    """
+    if request.method == 'POST':
+        # Get form data
+        form_data = {
+            'first_name': request.POST.get('first_name', '').strip(),
+            'last_name': request.POST.get('last_name', '').strip(),
+            'email': request.POST.get('email', '').strip(),
+            'username': request.POST.get('username', '').strip(),
+            'password': request.POST.get('password', '').strip(),
+            'confirm_password': request.POST.get('confirm_password', '').strip(),
+            'user_type': request.POST.get('user_type', 'student'),
+            'target_role': request.POST.get('target_role', ''),
+        }
+        
+        errors = {}
+        
+        # Validation
+        if not form_data['first_name']:
+            errors['first_name'] = 'First name is required.'
+        
+        if not form_data['last_name']:
+            errors['last_name'] = 'Last name is required.'
+        
+        if not form_data['email']:
+            errors['email'] = 'Email address is required.'
+        elif not '@' in form_data['email']:
+            errors['email'] = 'Please enter a valid email address.'
+        elif User.objects.filter(email=form_data['email']).exists():
+            errors['email'] = 'This email is already registered.'
+        
+        if not form_data['username']:
+            errors['username'] = 'Username is required.'
+        elif len(form_data['username']) < 3:
+            errors['username'] = 'Username must be at least 3 characters.'
+        elif User.objects.filter(username=form_data['username']).exists():
+            errors['username'] = 'This username is already taken.'
+        
+        if not form_data['password']:
+            errors['password'] = 'Password is required.'
+        elif len(form_data['password']) < 8:
+            errors['password'] = 'Password must be at least 8 characters.'
+        elif not any(c.isupper() for c in form_data['password']):
+            errors['password'] = 'Password must contain at least one uppercase letter.'
+        elif not any(c.islower() for c in form_data['password']):
+            errors['password'] = 'Password must contain at least one lowercase letter.'
+        elif not any(c.isdigit() for c in form_data['password']):
+            errors['password'] = 'Password must contain at least one number.'
+        
+        if not form_data['confirm_password']:
+            errors['confirm_password'] = 'Please confirm your password.'
+        elif form_data['password'] != form_data['confirm_password']:
+            errors['confirm_password'] = 'Passwords do not match.'
+        
+        if not request.POST.get('terms'):
+            errors['terms'] = 'You must accept the Terms of Service and Privacy Policy.'
+        
+        if errors:
+            # Return form with errors and preserved data
+            return render(request, 'register.html', {
+                'errors': errors,
+                'form_data': form_data
+            })
+        
+        try:
+            # Create user
+            user = User.objects.create_user(
+                username=form_data['username'],
+                email=form_data['email'],
+                password=form_data['password'],
+                first_name=form_data['first_name'],
+                last_name=form_data['last_name']
+            )
+            
+            # Optional: Create UserProfile
+            # UserProfile.objects.create(
+            #     user=user,
+            #     user_type=form_data['user_type'],
+            #     target_role=form_data['target_role']
+            # )
+            
+            # Log the user in
+            login(request, user)
+            
+            # Success message
+            messages.success(request, f"Welcome {form_data['first_name']}! Your account has been created successfully.")
+            
+            # Redirect to dashboard
+            return redirect('interviewapp:dashboard')
+            
+        except Exception as e:
+            # Log the error for debugging
+            print(f"Registration error: {e}")
+            
+            # User-friendly error message
+            return render(request, 'register.html', {
+                'error': 'An unexpected error occurred. Please try again.',
+                'form_data': form_data
+            })
+    
+    # GET request - show empty registration form
+    return render(request, 'register.html')
 
 def user_login(request):
     if request.method == 'POST':
@@ -304,7 +415,7 @@ def end_session(request, session_id):
     messages.success(request, f"Interview session {session.id} completed!")
     return redirect('interviewapp:session_summary', session_id=session.id)
 
-from .qgen_groq import generate_session_suggestions
+
 
 @login_required
 def session_summary(request, session_id):
@@ -415,158 +526,49 @@ class SimpleStartForm(forms.Form):
         widget=forms.HiddenInput()  # Or use NumberInput
     )
 
-@login_required
-def start_session_simple(request):
-    """
-    Minimal working version for testing
-    """
-    if request.method == 'POST':
-        form = SimpleStartForm(request.POST)
-        if form.is_valid():
-            role = form.cleaned_data['role']
-            n = form.cleaned_data['n_questions']
+# @login_required
+# def start_session_simple(request):
+#     """
+#     Minimal working version for testing
+#     """
+#     if request.method == 'POST':
+#         form = SimpleStartForm(request.POST)
+#         if form.is_valid():
+#             role = form.cleaned_data['role']
+#             n = form.cleaned_data['n_questions']
             
-            # Create session
-            session = InterviewSession.objects.create(
-                user=request.user,
-                role=role,
-                total_questions=n
-            )
+#             # Create session
+#             session = InterviewSession.objects.create(
+#                 user=request.user,
+#                 role=role,
+#                 total_questions=n
+#             )
             
-            # Create simple questions without AI
-            for i in range(n):
-                text = f"{role} Question {i+1}: Describe your experience with relevant technologies."
-                sig = signature_of_text(text)
+#             # Create simple questions without AI
+#             for i in range(n):
+#                 text = f"{role} Question {i+1}: Describe your experience with relevant technologies."
+#                 sig = signature_of_text(text)
                 
-                if not GeneratedQuestion.objects.filter(signature=sig).exists():
-                    GeneratedQuestion.objects.create(
-                        role=role,
-                        difficulty=3,
-                        text=text,
-                        keywords=f"{role},experience,technologies",
-                        signature=sig,
-                        source='manual'
-                    )
+#                 if not GeneratedQuestion.objects.filter(signature=sig).exists():
+#                     GeneratedQuestion.objects.create(
+#                         role=role,
+#                         difficulty=3,
+#                         text=text,
+#                         keywords=f"{role},experience,technologies",
+#                         signature=sig,
+#                         source='manual'
+#                     )
             
-            messages.success(request, f"Interview session started with {n} questions!")
-            return redirect('interviewapp:next_question', session_id=session.id)
-    else:
-        form = SimpleStartForm()
+#             messages.success(request, f"Interview session started with {n} questions!")
+#             return redirect('interviewapp:next_question', session_id=session.id)
+#     else:
+#         form = SimpleStartForm()
     
-    return render(request, 'start.html', {'form': form})
+#     return render(request, 'start.html', {'form': form})
 
-from django.contrib.auth.models import User
-from django.contrib.auth import login
-from django.contrib import messages
 
-from django.contrib.auth.models import User
-from django.contrib.auth import login
-from django.contrib import messages
 
-def register(request):
-    """
-    Handle user registration with proper error handling
-    """
-    if request.method == 'POST':
-        # Get form data
-        form_data = {
-            'first_name': request.POST.get('first_name', '').strip(),
-            'last_name': request.POST.get('last_name', '').strip(),
-            'email': request.POST.get('email', '').strip(),
-            'username': request.POST.get('username', '').strip(),
-            'password': request.POST.get('password', '').strip(),
-            'confirm_password': request.POST.get('confirm_password', '').strip(),
-            'user_type': request.POST.get('user_type', 'student'),
-            'target_role': request.POST.get('target_role', ''),
-        }
-        
-        errors = {}
-        
-        # Validation
-        if not form_data['first_name']:
-            errors['first_name'] = 'First name is required.'
-        
-        if not form_data['last_name']:
-            errors['last_name'] = 'Last name is required.'
-        
-        if not form_data['email']:
-            errors['email'] = 'Email address is required.'
-        elif not '@' in form_data['email']:
-            errors['email'] = 'Please enter a valid email address.'
-        elif User.objects.filter(email=form_data['email']).exists():
-            errors['email'] = 'This email is already registered.'
-        
-        if not form_data['username']:
-            errors['username'] = 'Username is required.'
-        elif len(form_data['username']) < 3:
-            errors['username'] = 'Username must be at least 3 characters.'
-        elif User.objects.filter(username=form_data['username']).exists():
-            errors['username'] = 'This username is already taken.'
-        
-        if not form_data['password']:
-            errors['password'] = 'Password is required.'
-        elif len(form_data['password']) < 8:
-            errors['password'] = 'Password must be at least 8 characters.'
-        elif not any(c.isupper() for c in form_data['password']):
-            errors['password'] = 'Password must contain at least one uppercase letter.'
-        elif not any(c.islower() for c in form_data['password']):
-            errors['password'] = 'Password must contain at least one lowercase letter.'
-        elif not any(c.isdigit() for c in form_data['password']):
-            errors['password'] = 'Password must contain at least one number.'
-        
-        if not form_data['confirm_password']:
-            errors['confirm_password'] = 'Please confirm your password.'
-        elif form_data['password'] != form_data['confirm_password']:
-            errors['confirm_password'] = 'Passwords do not match.'
-        
-        if not request.POST.get('terms'):
-            errors['terms'] = 'You must accept the Terms of Service and Privacy Policy.'
-        
-        if errors:
-            # Return form with errors and preserved data
-            return render(request, 'register.html', {
-                'errors': errors,
-                'form_data': form_data
-            })
-        
-        try:
-            # Create user
-            user = User.objects.create_user(
-                username=form_data['username'],
-                email=form_data['email'],
-                password=form_data['password'],
-                first_name=form_data['first_name'],
-                last_name=form_data['last_name']
-            )
-            
-            # Optional: Create UserProfile
-            # UserProfile.objects.create(
-            #     user=user,
-            #     user_type=form_data['user_type'],
-            #     target_role=form_data['target_role']
-            # )
-            
-            # Log the user in
-            login(request, user)
-            
-            # Success message
-            messages.success(request, f"Welcome {form_data['first_name']}! Your account has been created successfully.")
-            
-            # Redirect to dashboard
-            return redirect('interviewapp:dashboard')
-            
-        except Exception as e:
-            # Log the error for debugging
-            print(f"Registration error: {e}")
-            
-            # User-friendly error message
-            return render(request, 'register.html', {
-                'error': 'An unexpected error occurred. Please try again.',
-                'form_data': form_data
-            })
-    
-    # GET request - show empty registration form
-    return render(request, 'register.html')
+
 
 @login_required
 def delete_session(request, session_id):
@@ -586,12 +588,7 @@ def delete_session(request, session_id):
     return redirect("interviewapp:dashboard")
 
 
-from django.http import HttpResponse, HttpResponseForbidden
-from django.shortcuts import get_object_or_404
-from django.contrib.auth.decorators import login_required
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from textwrap import wrap
+
 
 @login_required
 def download_report(request, session_id):
