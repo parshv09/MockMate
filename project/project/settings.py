@@ -42,11 +42,6 @@ INSTALLED_APPS = [
 ]
 
 
-from pathlib import Path
-BASE_DIR = Path(__file__).resolve().parent.parent
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -134,3 +129,6 @@ load_dotenv(BASE_DIR / ".env")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
