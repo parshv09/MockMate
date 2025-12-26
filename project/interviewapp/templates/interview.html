@@ -75,12 +75,12 @@ session.current_index|add:5 100 %}%" {% block content %}
     <!-- Right Column: Answer Form -->
     <div>
       <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8">
-        <h3 class="text-xl font-semibold text-slate-900 mb-6">Your Answer</h3>
+        <h3 class="text-xl font-semibold text-slate-900 mb-6">Your Answer should be in text or audio</h3>
 
         <form
           method="post"
           action="{% url 'interviewapp:submit_answer' session.id %}"
-          class="space-y-6"
+          class="space-y-6" enctype="multipart/form-data"
         >
           {% csrf_token %}
           <input type="hidden" name="answer_id" value="{{ answer_id }}" />
@@ -91,7 +91,7 @@ session.current_index|add:5 100 %}%" {% block content %}
               for="answer_text"
               class="block text-sm font-medium text-slate-700 mb-2"
             >
-              Type your answer below
+              Type your answer below 
             </label>
             <div class="relative">
               <textarea
@@ -106,6 +106,36 @@ session.current_index|add:5 100 %}%" {% block content %}
               Be detailed and specific in your response.
             </p>
           </div>
+
+                    <!-- Voice Recording Controls -->
+          <div class="mt-6">
+            <label class="block font-medium mb-2">Record Voice Answer</label>
+
+            <div class="flex items-center gap-4">
+              <button type="button"
+                      id="recordBtn"
+                      class="bg-red-600 text-white px-4 py-2 rounded-lg">
+                🎙 Start Recording
+              </button>
+
+              <button type="button"
+                      id="stopBtn"
+                      disabled
+                      class="bg-gray-400 text-white px-4 py-2 rounded-lg">
+                ⏹ Stop
+              </button>
+            </div>
+
+            <audio id="audioPreview" controls class="mt-4 hidden"></audio>
+          </div>
+          <div class="mt-4">
+              <label class="block font-medium mb-1">Upload Voice Answer</label>
+              <input type="file"
+                    name="audio_file"
+                    accept="audio/*"
+                    class="border rounded p-2 w-full">
+            </div>
+
 
           <!-- Submit Button -->
           <div class="border-t border-slate-200 pt-6">
@@ -191,5 +221,58 @@ session.current_index|add:5 100 %}%" {% block content %}
         `;
     button.disabled = true;
   });
+  let mediaRecorder;
+let audioChunks = [];
+
+const recordBtn = document.getElementById("recordBtn");
+const stopBtn = document.getElementById("stopBtn");
+const audioPreview = document.getElementById("audioPreview");
+const fileInput = document.querySelector('input[name="audio_file"]');
+
+navigator.mediaDevices.getUserMedia({ audio: true })
+  .then(stream => {
+    mediaRecorder = new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = e => {
+      audioChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(audioChunks, { type: "audio/webm" });
+      audioChunks = [];
+
+      // Create file from blob
+      const audioFile = new File([blob], "recording.webm", {
+        type: "audio/webm"
+      });
+
+      // Attach to hidden file input
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(audioFile);
+      fileInput.files = dataTransfer.files;
+
+      // Preview audio
+      audioPreview.src = URL.createObjectURL(blob);
+      audioPreview.classList.remove("hidden");
+    };
+  })
+  .catch(err => {
+    alert("Microphone access denied");
+    console.error(err);
+  });
+
+recordBtn.onclick = () => {
+  mediaRecorder.start();
+  recordBtn.disabled = true;
+  stopBtn.disabled = false;
+  recordBtn.classList.add("opacity-50");
+};
+
+stopBtn.onclick = () => {
+  mediaRecorder.stop();
+  recordBtn.disabled = false;
+  stopBtn.disabled = true;
+  recordBtn.classList.remove("opacity-50");
+};
 </script>
 {% endblock %}

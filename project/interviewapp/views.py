@@ -6,7 +6,7 @@ from django.http import HttpResponseForbidden
 from django.db import transaction
 from django.utils import timezone
 from django import forms
-from .models import GeneratedQuestion, InterviewSession, Answer
+from .models import GeneratedQuestion, InterviewSession, Answer,UserProfile
 from .forms import StartSessionForm, AnswerForm
 from .nlp_utils import analyze_transcript
 import hashlib
@@ -24,6 +24,7 @@ from django.contrib.auth import login
 from django.contrib import messages
 from .qgen_groq import generate_session_suggestions
 from django.http import HttpResponse, HttpResponseForbidden
+from .speech_utils import transcribe_audio
 
 ROLE_MAP = {
     'tech': 'Technical',
@@ -136,11 +137,11 @@ def register(request):
             )
             
             # Optional: Create UserProfile
-            # UserProfile.objects.create(
-            #     user=user,
-            #     user_type=form_data['user_type'],
-            #     target_role=form_data['target_role']
-            # )
+            UserProfile.objects.create(
+                user=user,
+                user_type=form_data['user_type'],
+                target_role=form_data['target_role']
+            )
             
             # Log the user in
             login(request, user)
@@ -357,17 +358,33 @@ def submit_answer(request, session_id):
     form = AnswerForm(request.POST, request.FILES)
     if form.is_valid():
         ans.answer_text = form.cleaned_data.get('answer_text', '').strip()
+        ans.audio_file = request.FILES.get('audio_file')
 
+        # ✅ SAVE FIRST so audio exists on disk
+        ans.save(update_fields=['answer_text', 'audio_file'])
+
+
+        # 🎙 Transcribe audio if uploaded AND text is empty
+        if ans.audio_file and not ans.answer_text:
+            transcribed = transcribe_audio(ans.audio_file.path)
+            ans.answer_text = transcribed or "[Voice answer could not be transcribed]"
+
+        # 🧠 Analyze answer
         result = analyze_transcript(ans.answer_text, ans.question)
 
         ans.score = result.get('score')
         ans.feedback = result.get('feedback', '')
-
-        # ✅ THIS IS THE MISSING LINE
         ans.improvement_tips = result.get('improvement_tips', [])
-
         ans.processed = True
-        ans.save()
+
+        # ✅ Final save
+        ans.save(update_fields=[
+            'answer_text',
+            'score',
+            'feedback',
+            'improvement_tips',
+            'processed'
+        ])
 
         return redirect('interviewapp:next_question', session_id=session.id)
 
@@ -377,6 +394,9 @@ def submit_answer(request, session_id):
         'form': form,
         'session': session
     })
+
+
+    
 @login_required
 def skip_question(request, session_id):
     session = get_object_or_404(InterviewSession, id=session_id)

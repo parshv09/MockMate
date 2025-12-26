@@ -72,6 +72,7 @@ class Answer(models.Model):
     question = models.ForeignKey(GeneratedQuestion, on_delete=models.SET_NULL, null=True)
     index = models.IntegerField()
     answer_text = models.TextField(blank=True)
+    audio_file = models.FileField(upload_to="voice_answers/", null=True, blank=True)
     transcript = models.TextField(blank=True)
     score = models.FloatField(null=True, blank=True)
     feedback = models.TextField(blank=True)
