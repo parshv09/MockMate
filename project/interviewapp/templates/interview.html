@@ -1,278 +1,287 @@
-{% extends "base.html" %} {% block title %}Interview Session - AI Mock
-Interview{% endblock %} style="width: {% widthratio session.current_index
-session.current_index|add:5 100 %}%" {% block content %}
-<div class="animate-fade-in">
-  <!-- Progress Header -->
-  <div class="mb-8">
-    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-900">Interview Session</h1>
-        <p class="text-slate-600">
-          {{ session.role }} • Question {{ session.current_index }}
-        </p>
-      </div>
-    </div>
+{% extends "base.html" %} 
+{% block title %}Live Interview - AI Mock Session{% endblock %}
 
-    <!-- Progress Stepper -->
-    <div class="mb-2">
-      <div class="flex justify-between text-sm text-slate-600 mb-1">
-        <span>Progress</span>
-        <span>Question {{ session.current_index }}</span>
-      </div>
-      <div class="w-full bg-slate-200 rounded-full h-2">
-        <div
-          id="session-progress"
-          class="bg-primary-600 h-2 rounded-full transition-all duration-500"
-          style="width: 0%"
-        ></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-    <!-- Left Column: Question Card -->
-    <div>
-      <div
-        class="bg-white rounded-2xl shadow-lg p-6 md:p-8 transform transition-all duration-500 animate-fade-in hover:shadow-xl"
-      >
-        <div
-          class="flex flex-col md:flex-row md:items-start justify-between mb-6"
-        >
-          <div class="flex-1">
-            <div class="flex items-center space-x-3 mb-4">
-              <span
-                class="px-3 py-1 bg-primary-50 text-primary-700 rounded-full text-sm font-medium"
-              >
-                Question {{ session.current_index }}
-              </span>
-              {% if question.difficulty %}
-              <span
-                class="px-3 py-1 {% if question.difficulty <= 2 %}bg-green-50 text-green-700 {% elif question.difficulty <= 4 %}bg-amber-50 text-amber-700 {% else %}bg-red-50 text-red-700 {% endif %} rounded-full text-sm font-medium"
-              >
-                Difficulty: {{ question.difficulty }}
-              </span>
-              {% endif %}
+{% block content %}
+<div class="max-w-7xl mx-auto animate-fade-in relative z-10 pb-12">
+    <div class="mb-10">
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+            <div class="space-y-2">
+                <nav class="flex items-center space-x-3 text-[10px] font-black uppercase tracking-[0.2em] text-primary-600">
+                    <span class="relative flex h-3 w-3">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                    </span>
+                    <span>Active Evaluation Mode</span>
+                </nav>
+                <h1 class="text-4xl font-black text-slate-900 tracking-tight">
+                    {{ session.role|capfirst }} <span class="text-slate-400 font-light">Session</span>
+                </h1>
             </div>
-
-            <h2 class="text-2xl font-semibold text-slate-900 mb-4">
-              {{ question.text }}
-            </h2>
-
-            <!-- REMOVED THE KEYWORDS SECTION THAT CAUSED ERROR -->
-          </div>
+            
+            <div class="flex items-center bg-white/40 backdrop-blur-md rounded-2xl p-4 border border-white/60 shadow-sm">
+                <div class="text-right mr-4 border-r border-slate-200 pr-4">
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Progress</div>
+                    <div class="text-2xl font-black text-primary-600 leading-none">
+                        {{ session.current_index }}<span class="text-slate-300">/{{ session.total_questions }}</span>
+                    </div>
+                </div>
+                <div class="flex flex-col items-center">
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</div>
+                    <div id="recording-status-ui" class="text-sm font-bold text-slate-700">Ready</div>
+                </div>
+            </div>
         </div>
 
-        <div class="border-t border-slate-200 pt-6">
-          <div class="flex items-center justify-between">
-            <div class="text-sm text-slate-600">
-              Take your time to formulate your answer
+        <div class="w-full bg-slate-200/30 rounded-full h-4 p-1 border border-white/40 shadow-inner overflow-hidden">
+            <div id="session-progress" 
+                 class="h-full bg-gradient-to-r from-primary-500 via-indigo-600 to-primary-500 rounded-full transition-all duration-1000 ease-out shadow-lg relative"
+                 style="width: 0%">
             </div>
-          </div>
         </div>
-      </div>
     </div>
 
-    <!-- Right Column: Answer Form -->
-    <div>
-      <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8">
-        <h3 class="text-xl font-semibold text-slate-900 mb-6">Your Answer should be in text or audio</h3>
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+        <div class="lg:col-span-5 space-y-8">
+            <div class="glass-panel p-10 rounded-[3rem] border border-white/70 shadow-2xl relative overflow-hidden">
+                <div class="relative z-10">
+                    <div class="flex items-center justify-between mb-10">
+                        <span class="px-4 py-1.5 bg-primary-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-primary-500/30">
+                            Question {{ session.current_index }}
+                        </span>
+                        {% if question.difficulty %}
+                        <div class="flex items-center space-x-1">
+                               {% for i in "12345" %}
+                               <div class="w-1 h-3 rounded-full {% if forloop.counter <= question.difficulty %}bg-primary-500{% else %}bg-slate-300/50{% endif %}"></div>
+                               {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
 
-        <form
-          method="post"
-          action="{% url 'interviewapp:submit_answer' session.id %}"
-          class="space-y-6" enctype="multipart/form-data"
-        >
-          {% csrf_token %}
-          <input type="hidden" name="answer_id" value="{{ answer_id }}" />
+                    <h2 class="text-2xl font-bold text-slate-800 leading-[1.4] mb-10">
+                        "{{ question.text }}"
+                    </h2>
 
-          <!-- Text Answer -->
-          <div>
-            <label
-              for="answer_text"
-              class="block text-sm font-medium text-slate-700 mb-2"
-            >
-              Type your answer below 
-            </label>
-            <div class="relative">
-              <textarea
-                name="answer_text"
-                id="answer_text"
-                rows="10"
-                class="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
-                placeholder="Provide your detailed answer here..."
-              ></textarea>
+                    <div class="p-6 bg-primary-500/5 rounded-[2rem] border border-primary-500/10">
+                        <p class="text-sm text-slate-600 leading-relaxed italic">
+                            Tip: Focus on using the <strong>STAR</strong> method for this response.
+                        </p>
+                    </div>
+                </div>
             </div>
-            <p class="text-sm text-slate-500 mt-2">
-              Be detailed and specific in your response.
-            </p>
-          </div>
+        </div>
+<div class="lg:col-span-7">
+    <form method="post" action="{% url 'interviewapp:submit_answer' session.id %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="answer_id" value="{{ answer_id }}" />
 
-                    <!-- Voice Recording Controls -->
-          <div class="mt-6">
-            <label class="block font-medium mb-2">Record Voice Answer</label>
-
-            <div class="flex items-center gap-4">
-              <button type="button"
-                      id="recordBtn"
-                      class="bg-red-600 text-white px-4 py-2 rounded-lg">
-                🎙 Start Recording
-              </button>
-
-              <button type="button"
-                      id="stopBtn"
-                      disabled
-                      class="bg-gray-400 text-white px-4 py-2 rounded-lg">
-                ⏹ Stop
-              </button>
+        <div class="glass-panel p-8 md:p-10 rounded-[3.5rem] border border-white/50 shadow-2xl relative">
+            
+            <div class="flex items-center space-x-8 mb-8 border-b border-slate-100/50">
+                <button type="button" id="tab-text" onclick="switchTab('text')" 
+                        class="text-sm font-black text-primary-600 border-b-4 border-primary-600 pb-4 transition-all">
+                    Text Response
+                </button>
+                <button type="button" id="tab-audio" onclick="switchTab('audio')" 
+                        class="text-sm font-bold text-slate-400 pb-4 hover:text-slate-600 transition-all">
+                    Voice Recording
+                </button>
             </div>
 
-            <audio id="audioPreview" controls class="mt-4 hidden"></audio>
-          </div>
-          <div class="mt-4">
-              <label class="block font-medium mb-1">Upload Voice Answer</label>
-              <input type="file"
-                    name="audio_file"
-                    accept="audio/*"
-                    class="border rounded p-2 w-full">
+            <div id="section-text" class="animate-fade-in">
+                <div class="relative mb-4">
+                    <textarea
+                        name="answer_text"
+                        id="answer_text"
+                        rows="12"
+                        class="w-full px-8 py-8 glass-card border-white/80 rounded-[2.5rem] focus:ring-[12px] focus:ring-primary-500/5 focus:border-primary-500 transition-all resize-none text-slate-700 font-medium text-lg leading-relaxed shadow-inner"
+                        placeholder="Type your professional response here..."></textarea>
+                    
+                    <div class="absolute bottom-6 right-8">
+                        <div class="px-4 py-2 bg-slate-900 text-white text-[10px] font-black rounded-2xl shadow-xl">
+                            <span id="word-count">0</span> / 500 Words
+                        </div>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500 font-medium px-4">AI evaluates your response based on clarity and structured logic.</p>
             </div>
 
+            <div id="section-audio" class="hidden animate-fade-in">
+                <div class="bg-slate-900 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden group">
+                    <div class="flex items-end justify-center space-x-1 mb-10 h-12" id="audio-viz">
+                        {% for i in "12345678" %}<div class="w-1.5 bg-primary-500/30 rounded-full h-4 transition-all duration-200"></div>{% endfor %}
+                    </div>
 
-          <!-- Submit Button -->
-          <div class="border-t border-slate-200 pt-6">
-            <button
-              type="submit"
-              id="submit-button"
-              class="w-full bg-primary-600 text-white py-4 px-6 rounded-xl hover:bg-primary-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-transform flex items-center justify-center"
-            >
-              <svg
-                class="w-6 h-6 mr-3"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M5 13l4 4L19 7"
-                ></path>
-              </svg>
-              Submit Answer
-            </button>
-            <p class="text-center text-sm text-slate-600 mt-3">
-              Press
-              <kbd class="px-2 py-1 bg-slate-100 rounded text-sm">Ctrl</kbd> +
-              <kbd class="px-2 py-1 bg-slate-100 rounded text-sm">Enter</kbd> to
-              submit quickly
-            </p>
-          </div>
-        </form>
-      </div>
+                    <div class="flex flex-col items-center text-center space-y-8">
+                        <div class="flex items-center space-x-8">
+                            <button type="button" id="recordBtn" class="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center hover:bg-red-700 transition-all shadow-lg active:scale-90">
+                                <div class="w-6 h-6 bg-white rounded-full"></div>
+                            </button>
+                            <button type="button" id="stopBtn" disabled class="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 disabled:opacity-20 transition-all">
+                                <div class="w-5 h-5 bg-white rounded-sm"></div>
+                            </button>
+                        </div>
+                        
+                        <div>
+                            <div id="recording-status" class="text-lg font-bold tracking-tight text-white mb-1">Ready to capture</div>
+                            <div class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Audio Analytics Mode</div>
+                        </div>
 
-      <!-- Help Text -->
-      <div class="mt-6 bg-slate-50 rounded-xl p-4">
-        <h4 class="text-sm font-medium text-slate-700 mb-2">
-          Tips for a Good Answer
-        </h4>
-        <ul class="text-sm text-slate-600 space-y-1">
-          <li>• Be specific and provide examples</li>
-          <li>• Structure your thoughts clearly</li>
-          <li>• Relate to the question topic</li>
-          <li>• Aim for 3-5 sentences minimum</li>
-        </ul>
-      </div>
+                        <audio id="audioPreview" controls class="w-full hidden filter invert brightness-200"></audio>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <label class="flex items-center justify-center px-6 py-4 glass-card border-dashed border-2 border-slate-200 rounded-2xl cursor-pointer hover:border-primary-500 transition-colors group">
+                        <svg class="w-5 h-5 mr-3 text-slate-400 group-hover:text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <span class="text-sm font-bold text-slate-500 group-hover:text-primary-600">Manual Audio Upload</span>
+                        <input type="file" name="audio_file" accept="audio/*" class="hidden">
+                    </label>
+                </div>
+            </div>
+
+            <div class="mt-12 pt-10 border-t border-slate-100/50 flex flex-col md:flex-row items-center justify-between gap-8">
+                <div class="text-xs font-bold text-slate-400 flex items-center">
+                    <kbd class="px-2 py-1 bg-slate-100 rounded-md border border-slate-200 mr-2 text-[9px]">CTRL + ENTER</kbd>
+                    Quick Submit
+                </div>
+                
+                <button type="submit" id="submit-button" 
+                        class="w-full md:w-auto bg-primary-600 text-white px-12 py-5 rounded-[2rem] font-black text-lg hover:bg-primary-700 shadow-xl transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center">
+                    Finish Question
+                    <svg class="ml-3 w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                </button>
+                
+            </div>
+        </div>
+    </form>
+</div>
     </div>
-  </div>
 </div>
 
 <script>
-  // Keyboard shortcut for Ctrl+Enter
-  document.addEventListener("keydown", function (e) {
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-      e.preventDefault();
-      document.getElementById("submit-button").click();
-    }
-  });
-  document.addEventListener("DOMContentLoaded", function () {
-    // compute safely in client-side: use session.current_index and session.total_questions if passed
-    const progressEl = document.getElementById("session-progress");
-    if (!progressEl) return;
-    // Pass values via data attributes from template (set attributes on a wrapper if available)
-    const idx = parseInt("{{ session.current_index|default:1 }}", 10) || 1;
-    const total =
-      parseInt("{{ session.total_questions|default:5 }}", 10) || idx;
-    const pct = Math.max(
-      0,
-      Math.min(100, Math.round((idx / Math.max(1, total)) * 100))
-    );
-    setTimeout(() => {
-      progressEl.style.width = pct + "%";
-    }, 100);
-  });
-  // Form submission loading state
-  document.querySelector("form").addEventListener("submit", function () {
-    const button = document.getElementById("submit-button");
-    button.innerHTML = `
-            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Processing...
-        `;
-    button.disabled = true;
-  });
-  let mediaRecorder;
-let audioChunks = [];
+    // 1. ORIGINAL RECORDING LOGIC (CORE LOGIC UNCHANGED)
+    let mediaRecorder;
+    let audioChunks = [];
 
-const recordBtn = document.getElementById("recordBtn");
-const stopBtn = document.getElementById("stopBtn");
-const audioPreview = document.getElementById("audioPreview");
-const fileInput = document.querySelector('input[name="audio_file"]');
+    const recordBtn = document.getElementById("recordBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const audioPreview = document.getElementById("audioPreview");
+    const fileInput = document.querySelector('input[name="audio_file"]');
+    const statusText = document.getElementById('recording-status');
 
-navigator.mediaDevices.getUserMedia({ audio: true })
-  .then(stream => {
-    mediaRecorder = new MediaRecorder(stream);
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        mediaRecorder = new MediaRecorder(stream);
 
-    mediaRecorder.ondataavailable = e => {
-      audioChunks.push(e.data);
-    };
+        mediaRecorder.ondataavailable = e => {
+          audioChunks.push(e.data);
+        };
 
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(audioChunks, { type: "audio/webm" });
-      audioChunks = [];
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunks, { type: "audio/webm" });
+          audioChunks = [];
+          const audioFile = new File([blob], "recording.webm", { type: "audio/webm" });
 
-      // Create file from blob
-      const audioFile = new File([blob], "recording.webm", {
-        type: "audio/webm"
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(audioFile);
+          fileInput.files = dataTransfer.files;
+
+          audioPreview.src = URL.createObjectURL(blob);
+          audioPreview.classList.remove("hidden");
+          statusText.textContent = "Recording Saved";
+        };
+      })
+      .catch(err => {
+        console.error("Microphone access denied", err);
       });
 
-      // Attach to hidden file input
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(audioFile);
-      fileInput.files = dataTransfer.files;
-
-      // Preview audio
-      audioPreview.src = URL.createObjectURL(blob);
-      audioPreview.classList.remove("hidden");
+    recordBtn.onclick = () => {
+      mediaRecorder.start();
+      recordBtn.disabled = true;
+      stopBtn.disabled = false;
+      recordBtn.classList.add("opacity-50");
+      statusText.textContent = "Recording...";
+      document.getElementById('recording-status-ui').textContent = "Live";
     };
-  })
-  .catch(err => {
-    alert("Microphone access denied");
-    console.error(err);
-  });
 
-recordBtn.onclick = () => {
-  mediaRecorder.start();
-  recordBtn.disabled = true;
-  stopBtn.disabled = false;
-  recordBtn.classList.add("opacity-50");
-};
+    stopBtn.onclick = () => {
+      mediaRecorder.stop();
+      recordBtn.disabled = false;
+      stopBtn.disabled = true;
+      recordBtn.classList.remove("opacity-50");
+      document.getElementById('recording-status-ui').textContent = "Ready";
+    };
 
-stopBtn.onclick = () => {
-  mediaRecorder.stop();
-  recordBtn.disabled = false;
-  stopBtn.disabled = true;
-  recordBtn.classList.remove("opacity-50");
-};
+    // 2. UI LOGIC (PROGRESS & SUBMIT)
+    document.addEventListener("DOMContentLoaded", function () {
+        const progressEl = document.getElementById("session-progress");
+        const idx = parseInt("{{ session.current_index|default:1 }}", 10);
+        const total = parseInt("{{ session.total_questions|default:5 }}", 10);
+        const pct = Math.round((idx / total) * 100);
+        setTimeout(() => { progressEl.style.width = pct + "%"; }, 500);
+    });
+
+    document.querySelector("form").addEventListener("submit", function () {
+        const btn = document.getElementById("submit-button");
+        btn.innerHTML = `<svg class="animate-spin h-6 w-6 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+        btn.disabled = true;
+    });
+
+    document.addEventListener("keydown", function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            e.preventDefault();
+            document.getElementById("submit-button").click();
+        }
+    });
+    function switchTab(type) {
+        const textSection = document.getElementById('section-text');
+        const audioSection = document.getElementById('section-audio');
+        const textTab = document.getElementById('tab-text');
+        const audioTab = document.getElementById('tab-audio');
+
+        if (type === 'text') {
+            textSection.classList.remove('hidden');
+            audioSection.classList.add('hidden');
+            textTab.className = "text-sm font-black text-primary-600 border-b-4 border-primary-600 pb-4 transition-all";
+            audioTab.className = "text-sm font-bold text-slate-400 pb-4 hover:text-slate-600 transition-all";
+        } else {
+            textSection.classList.add('hidden');
+            audioSection.classList.remove('hidden');
+            audioTab.className = "text-sm font-black text-primary-600 border-b-4 border-primary-600 pb-4 transition-all";
+            textTab.className = "text-sm font-bold text-slate-400 pb-4 hover:text-slate-600 transition-all";
+        }
+    }
+
+    // Audio Visualizer Animation
+    let vizInterval;
+    function toggleViz(active) {
+        const bars = document.querySelectorAll('#audio-viz div');
+        if (active) {
+            vizInterval = setInterval(() => {
+                bars.forEach(bar => {
+                    bar.style.height = (Math.random() * 40 + 10) + 'px';
+                    bar.style.backgroundColor = '#4F46E5';
+                });
+            }, 100);
+        } else {
+            clearInterval(vizInterval);
+            bars.forEach(bar => {
+                bar.style.height = '16px';
+                bar.style.backgroundColor = 'rgba(79, 70, 229, 0.3)';
+            });
+        }
+    }
+
+    // Link visualizer to your existing record buttons
+    document.getElementById('recordBtn').addEventListener('click', () => toggleViz(true));
+    document.getElementById('stopBtn').addEventListener('click', () => toggleViz(false));
+    
+    // Original Word Counter logic
+    const area = document.getElementById('answer_text');
+    const wordCount = document.getElementById('word-count');
+    area.addEventListener('input', () => {
+        const words = area.value.trim() ? area.value.trim().split(/\s+/).length : 0;
+        wordCount.textContent = words;
+    });
 </script>
 {% endblock %}

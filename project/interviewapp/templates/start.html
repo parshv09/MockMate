@@ -1,248 +1,135 @@
 {% extends "base.html" %} {% block title %}Start Interview - AI Mock Interview{%endblock %} 
 {% block content %}
-<div class="max-w-2xl mx-auto animate-fade-in">
-  <div class="text-center mb-10">
-    <h1 class="text-3xl font-bold text-slate-900 mb-3">Start New Interview</h1>
-    <p class="text-lg text-slate-600">Configure your mock interview session</p>
-  </div>
-
-  <div class="bg-white rounded-2xl shadow-lg p-8">
-    <form method="post">
-      {% csrf_token %}
-
-      <div class="space-y-6">
-        <!-- Role Selection - MUST MATCH YOUR FORM FIELD NAMES -->
-        <div>
-          <h3 class="text-lg font-semibold text-slate-900 mb-4">
-            Select Target Interview type
-          </h3>
-
-          {% if form.role.errors %}
-          <div class="text-red-600 mb-2">{{ form.role.errors }}</div>
-          {% endif %}
-
-          <div class="space-y-3">
-            {% for choice in form.role.field.choices %}
-            <label
-              class="flex items-center p-4 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-primary-500 has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 transition-all"
-            >
-              <input
-                type="radio"
-                name="{{ form.role.name }}"
-                value="{{ choice.0 }}"
-                class="mr-4 text-primary-600 focus:ring-primary-500"
-                {%
-                if
-                forloop.first
-                %}checked{%
-                endif
-                %}
-              />
-              <div class="flex items-center">
-                <div
-                  class="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center mr-4"
-                >
-                  {% if choice.0 == 'tech' %}
-                  <svg
-                    class="w-6 h-6 text-primary-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-                    ></path>
-                  </svg>
-                  {% elif choice.0 == 'hr' %}
-                  <svg
-                    class="w-6 h-6 text-primary-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                    ></path>
-                  </svg>
-                  {% else %}
-                  <svg
-                    class="w-6 h-6 text-primary-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                    ></path>
-                  </svg>
-                  {% endif %}
-                </div>
-                <div>
-                  <div class="font-medium text-slate-900">{{ choice.1 }}</div>
-                  {% if choice.0 == 'tech' %}
-                  <div class="text-sm text-slate-600">Technical questions</div>
-                  {% elif choice.0 == 'hr' %}
-                  <div class="text-sm text-slate-600">
-                    HR & behavioral questions
-                  </div>
-                  {% elif choice.0 == 'apt' %}
-                  <div class="text-sm text-slate-600">
-                    Aptitude & logical reasoning
-                  </div>
-                  {% elif choice.0 == 'beh' %}
-                  <div class="text-sm text-slate-600">Behavioral scenarios</div>
-                  {% endif %}
-                </div>
-              </div>
-            </label>
-            {% endfor %}
-          </div>
-        </div>
-
-        <!-- Number of Questions - MUST MATCH YOUR FORM FIELD NAME -->
-        <div>
-          <label
-            for="{{ form.n_questions.id_for_label }}"
-            class="block text-lg font-semibold text-slate-900 mb-4"
-          >
-            Number of Questions
-          </label>
-
-          {% if form.n_questions.errors %}
-          <div class="text-red-600 mb-2">{{ form.n_questions.errors }}</div>
-          {% endif %}
-
-          <div class="flex items-center space-x-4">
-            <input
-              type="range"
-              id="{{ form.n_questions.id_for_label }}"
-              name="{{ form.n_questions.name }}"
-              min="1"
-              max="20"
-              value="{{ form.n_questions.value|default:'5' }}"
-              class="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-              oninput="document.getElementById('countValue').textContent = this.value + ' questions'"
-            />
-            <div
-              class="w-32 px-4 py-2 bg-primary-50 text-primary-700 rounded-xl font-semibold text-center"
-            >
-              <span id="countValue"
-                >{{ form.n_questions.value|default:'5' }} questions</span
-              >
-            </div>
-          </div>
-          <div class="flex justify-between text-sm text-slate-600 mt-2">
-            <span>Quick (1)</span>
-            <span>Standard (5)</span>
-            <span>Comprehensive (20)</span>
-          </div>
-        </div>
-
-        <!-- Submit Button -->
-        <div class="pt-6">
-          <button
-            type="submit"
-            class="w-full bg-primary-600 text-white py-4 px-6 rounded-xl hover:bg-primary-700 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-transform flex items-center justify-center"
-          >
-            <svg
-              class="w-6 h-6 mr-3"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-              ></path>
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              ></path>
-            </svg>
-            Start Interview Session
-          </button>
-        </div>
-      </div>
-    </form>
-  </div>
-
-  <!-- Instructions Panel -->
-  <div
-    class="mt-8 bg-gradient-to-b from-primary-50 to-white rounded-2xl shadow-lg p-6 border border-primary-100"
-  >
-    <h3 class="text-xl font-semibold text-slate-900 mb-6">How It Works</h3>
-
-    <div class="space-y-4">
-      <div class="flex items-start">
-        <div
-          class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0"
-        >
-          <span class="text-primary-700 font-semibold">1</span>
-        </div>
-        <div>
-          <h4 class="font-medium text-slate-900 mb-1">Select Your Role</h4>
-          <p class="text-sm text-slate-600">
-            Choose the type of interview questions you want to practice.
-          </p>
-        </div>
-      </div>
-
-      <div class="flex items-start">
-        <div
-          class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0"
-        >
-          <span class="text-primary-700 font-semibold">2</span>
-        </div>
-        <div>
-          <h4 class="font-medium text-slate-900 mb-1">Answer Questions</h4>
-          <p class="text-sm text-slate-600">
-            Provide written answers to AI-generated interview questions.
-          </p>
-        </div>
-      </div>
-
-      <div class="flex items-start">
-        <div
-          class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0"
-        >
-          <span class="text-primary-700 font-semibold">3</span>
-        </div>
-        <div>
-          <h4 class="font-medium text-slate-900 mb-1">Get AI Feedback</h4>
-          <p class="text-sm text-slate-600">
-            Receive instant scores and feedback on your responses.
-          </p>
-        </div>
-      </div>
-
-      <div class="flex items-start">
-        <div
-          class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0"
-        >
-          <span class="text-primary-700 font-semibold">4</span>
-        </div>
-        <div>
-          <h4 class="font-medium text-slate-900 mb-1">Review & Improve</h4>
-          <p class="text-sm text-slate-600">
-            Study your performance summary and identify areas for improvement.
-          </p>
-        </div>
-      </div>
+<div class="max-w-3xl mx-auto animate-fade-in relative z-10">
+    <div class="text-center mb-10">
+        <h1 class="text-4xl font-black text-slate-900 mb-3 tracking-tight">
+            Launch Your <span class="text-primary-600">Mock Session</span>
+        </h1>
+        <p class="text-lg text-slate-600 font-medium">Tailor your experience for the best results</p>
     </div>
-  </div>
+
+    <div class="glass-panel rounded-[2.5rem] border border-white/50 shadow-2xl p-8 md:p-12">
+        <form method="post" class="space-y-10">
+            {% csrf_token %}
+
+            <div>
+                <div class="flex items-center space-x-3 mb-6">
+                    <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary-500/30">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900">1. Select Target Interview Type</h3>
+                </div>
+
+                {% if form.role.errors %}
+                    <div class="mb-4 p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-bold flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                        {{ form.role.errors }}
+                    </div>
+                {% endif %}
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for choice in form.role.field.choices %}
+                    <label class="relative group cursor-pointer">
+                        <input type="radio" name="{{ form.role.name }}" value="{{ choice.0 }}" class="sr-only peer" {% if forloop.first %}checked{% endif %}>
+                        
+                        <div class="h-full p-5 glass-card border border-white/60 rounded-2xl transition-all duration-300 
+                                    peer-checked:bg-primary-600/10 peer-checked:border-primary-500 peer-checked:ring-2 peer-checked:ring-primary-500/20
+                                    group-hover:border-primary-400 group-hover:shadow-lg group-hover:-translate-y-1">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                    {% if choice.0 == 'tech' %}
+                                        <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                                    {% elif choice.0 == 'hr' %}
+                                        <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                    {% else %}
+                                        <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-bold text-slate-900">{{ choice.1 }}</div>
+                                    <div class="text-xs text-slate-500 font-medium">
+                                        {% if choice.0 == 'tech' %}Coding & Logic{% elif choice.0 == 'hr' %}Soft Skills{% elif choice.0 == 'apt' %}Logic & IQ{% else %}Scenarios{% endif %}
+                                    </div>
+                                </div>
+                                <div class="opacity-0 peer-checked:opacity-100 transition-opacity">
+                                    <div class="w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center">
+                                        <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"></path></svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div>
+                <div class="flex items-center space-x-3 mb-6">
+                    <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary-500/30">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-900">2. Number of Questions</h3>
+                </div>
+
+                <div class="p-6 glass-card rounded-3xl border border-white/50">
+                    <div class="flex flex-col space-y-4">
+                        <div class="flex justify-between items-center px-2">
+                            <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Select Intensity</span>
+                            <span id="countValue" class="px-4 py-1 bg-primary-600 text-white text-sm font-black rounded-full shadow-lg shadow-primary-500/20">
+                                {{ form.n_questions.value|default:'5' }} questions
+                            </span>
+                        </div>
+                        
+                        <input type="range" 
+                               id="{{ form.n_questions.id_for_label }}" 
+                               name="{{ form.n_questions.name }}" 
+                               min="1" max="20" 
+                               value="{{ form.n_questions.value|default:'5' }}"
+                               class="w-full h-3 bg-slate-200/50 rounded-full appearance-none cursor-pointer accent-primary-600"
+                               oninput="document.getElementById('countValue').textContent = this.value + ' questions'">
+                        
+                        <div class="flex justify-between px-1">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Quick Blitz</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Standard</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Pro Session</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" 
+                    class="w-full group bg-slate-900 text-white py-5 px-8 rounded-2xl font-black text-xl hover:bg-primary-600 transition-all shadow-2xl hover:shadow-primary-500/40 flex items-center justify-center relative overflow-hidden active:scale-95">
+                <span class="relative z-10 flex items-center">
+                    Initialize Session
+                    <svg class="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+                </span>
+                <div class="absolute inset-0 bg-gradient-to-r from-primary-400 to-primary-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            </button>
+        </form>
+    </div>
+
+    <div class="mt-8 glass-panel rounded-3xl border border-white/40 p-8 shadow-xl">
+        <div class="flex items-center space-x-3 mb-8">
+            <div class="w-6 h-1.5 bg-primary-600 rounded-full"></div>
+            <h3 class="text-lg font-black text-slate-900 uppercase tracking-tight">System Workflow</h3>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {% for step in "1234" %}
+            <div class="relative group">
+                <div class="text-4xl font-black text-slate-100 absolute -top-4 -left-2 group-hover:text-primary-100 transition-colors">{{ step }}</div>
+                <div class="relative z-10 pt-4">
+                    <h4 class="font-bold text-slate-900 text-sm mb-1">
+                        {% if step == '1' %}Role Sync{% elif step == '2' %}AI Context{% elif step == '3' %}Real-time Eval{% else %}Smart Summary{% endif %}
+                    </h4>
+                    <p class="text-xs text-slate-500 leading-relaxed font-medium">
+                        {% if step == '1' %}We match questions to your career target.{% elif step == '2' %}LLM generates bespoke interview prompts.{% elif step == '3' %}Instant analysis of your responses.{% else %}Detailed resource mapping & tips.{% endif %}
+                    </p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
 </div>
 
 <script>

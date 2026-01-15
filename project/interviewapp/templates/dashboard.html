@@ -4,40 +4,28 @@
   <!-- Welcome Section -->
   <div class="mb-8">
     <h1 class="text-3xl font-bold text-slate-900 mb-2">
-      Welcome back, {{ user.username }}!
+      Welcome back, {{ user.first_name  }} {{user.last_name}}!
     </h1>
     <p class="text-slate-600">Continue your interview preparation journey</p>
   </div>
 
   <!-- Stats Cards -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
+    <div class="glass-panel interactive-lift rounded-3xl p-6 border border-slate-200">
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm text-slate-600 mb-1">Total Interviews</p>
+          <p class="text-sm font-medium text-slate-600 mb-1">Total Interviews</p>
           <p class="text-3xl font-bold text-slate-900">{{ sessions|length }}</p>
         </div>
-        <div
-          class="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center"
-        >
-          <svg
-            class="w-6 h-6 text-primary-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-            ></path>
-          </svg>
+      <div class="w-12 h-12 bg-primary-500/10 rounded-2xl flex items-center justify-center">
+            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+            </svg>
         </div>
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
+   <div class="glass-panel interactive-lift rounded-3xl p-6 border border-slate-200">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm text-slate-600 mb-1">Average Score</p>
@@ -65,7 +53,7 @@
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-200">
+    <div class="glass-panel interactive-lift rounded-3xl p-6 border border-slate-200">
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm text-slate-600 mb-1">Questions Answered</p>
@@ -93,195 +81,172 @@
   </div>
 
   <!-- CTA Card -->
-  <div
-    class="bg-gradient-to-r from-primary-600 to-accent-500 rounded-2xl shadow-lg p-8 mb-8 text-white"
-  >
-    <div class="flex flex-col md:flex-row items-center justify-between">
-      <div class="mb-6 md:mb-0 md:mr-8">
-        <h2 class="text-2xl font-bold mb-2">Ready for your next interview?</h2>
-        <p class="text-primary-100 mb-4">
-          Practice with our AI interviewer tailored to your target role.
-        </p>
-        <a
-          href="{% url 'interviewapp:start_session' %}"
-          class="inline-flex items-center bg-white text-primary-600 px-6 py-3 rounded-xl font-semibold hover:bg-primary-50 transition-colors transform hover:-translate-y-0.5 transition-transform"
-        >
-          Start New Interview
-          <svg
-            class="ml-2 w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M13 7l5 5m0 0l-5 5m5-5H6"
-            ></path>
-          </svg>
-        </a>
-      </div>
-      <div class="w-40 h-40 relative">
-        <div
-          class="absolute inset-0 bg-white/20 rounded-full animate-pulse-subtle"
-        ></div>
-        <div
-          class="absolute inset-4 bg-white/30 rounded-full animate-pulse-subtle"
-          style="animation-delay: 0.2s"
-        ></div>
-        <div
-          class="absolute inset-8 bg-white/40 rounded-full animate-pulse-subtle"
-          style="animation-delay: 0.4s"
-        ></div>
-      </div>
+<div class="glass-panel interactive-lift rounded-[2rem] overflow-hidden border border-white/40 shadow-2xl mb-12 relative group">
+    <div class="absolute -top-24 -right-24 w-64 h-64 bg-primary-500/20 blur-[80px] group-hover:bg-primary-500/30 transition-colors"></div>
+    
+    <div class="relative z-10 p-8 md:p-10">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-8">
+            <div class="text-center md:text-left">
+                <div class="inline-flex items-center px-3 py-1 rounded-full bg-primary-100/50 text-primary-700 text-xs font-bold uppercase tracking-wider mb-4 border border-primary-200/50">
+                    Boost your career
+                </div>
+                <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">
+                    Ready for your <span class="text-primary-600">next interview?</span>
+                </h2>
+                <p class="text-slate-600 text-lg mb-8 max-w-lg leading-relaxed">
+                    Practice with our AI interviewer tailored to your target role and get instant, actionable feedback.
+                </p>
+                
+                <a href="{% url 'interviewapp:start_session' %}"
+                   class="inline-flex items-center bg-primary-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:bg-primary-700 shadow-[0_10px_20px_-10px_rgba(79,70,229,0.5)] transition-all transform hover:-translate-y-1 active:scale-95">
+                    Start New Interview
+                    <svg class="ml-3 w-6 h-6 animate-bounce-x" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                    </svg>
+                </a>
+            </div>
+
+            <div class="relative w-48 h-48 flex items-center justify-center">
+                <div class="absolute inset-0 bg-primary-200/40 rounded-full animate-ping opacity-20"></div>
+                <div class="absolute inset-4 bg-primary-300/40 rounded-full animate-pulse-subtle"></div>
+                
+                <div class="relative z-10 w-24 h-24 glass-panel rounded-3xl shadow-xl flex items-center justify-center border border-white/60 transform rotate-12 group-hover:rotate-0 transition-transform duration-500">
+                    <svg class="w-12 h-12 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
+</div>
 
-  <!-- Recent Sessions -->
-  <div
-    class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden"
-  >
-    <div class="p-6 border-b border-slate-200">
-      <h3 class="text-xl font-semibold text-slate-900">
-        Recent Interview Sessions
-      </h3>
+<div class="glass-panel rounded-[2.5rem] border border-white/40 shadow-2xl overflow-hidden animate-fade-in">
+    <div class="px-8 py-6 border-b border-white/20 bg-white/10 flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+            <div class="w-12 h-12 bg-primary-500/20 rounded-2xl flex items-center justify-center border border-primary-500/30">
+                <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-slate-900">Recent Sessions</h3>
+                <p class="text-xs text-slate-500 font-medium uppercase tracking-widest">Your progress history</p>
+            </div>
+        </div>
+        <span class="px-4 py-1.5 bg-white/50 rounded-full text-xs font-bold text-primary-700 border border-white/60 shadow-sm">
+            {{ sessions|length }} Total
+        </span>
     </div>
 
-    {% if sessions %}
-    <div class="divide-y divide-slate-200">
-      {% for s in sessions %}
-      <div class="p-6 hover:bg-slate-50 transition-colors">
-        <div class="flex flex-col md:flex-row md:items-center justify-between">
-          <div class="mb-4 md:mb-0">
-            <div class="flex items-center space-x-3 mb-2">
-              <a
-                href="{% url 'interviewapp:next_question' s.id %}"
-                class="text-lg font-medium text-primary-600 hover:text-primary-800"
-              >
-                Session {{ s.id }}
-              </a>
-              <span
-                class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm"
-              >
-                {{ s.role }}
-              </span>
-              {% if s.completed %}
-              <span
-                class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm"
-              >
-                Completed
-              </span>
-              {% else %}
-              <span
-                class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm"
-              >
-                In Progress
-              </span>
-              {% endif %}
-            </div>
-            <div class="text-sm text-slate-600">
-              Started: {{ s.started_at|date:"M d, Y H:i" }} {% if s.completed_at%} • Completed: {{ s.completed_at|date:"M d, Y H:i" }} {% endif %}
-            </div>
-          </div>
+    <div class="p-8">
+        {% if sessions %}
+        <div class="space-y-6">
+            {% for s in sessions %}
+            <div class="glass-card interactive-lift rounded-3xl p-6 border border-white/50 shadow-sm group">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div class="flex items-start space-x-4">
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-400 group-hover:from-primary-500 group-hover:to-primary-600 group-hover:text-white transition-all duration-500 shadow-inner">
+                            <span class="text-xl font-black">#{{ forloop.counter }}</span>
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-3 mb-2">
+                                <a href="{% url 'interviewapp:next_question' s.id %}" class="text-lg font-bold text-slate-800 hover:text-primary-600 transition-colors">
+                                    {{ s.role|capfirst }} Interview
+                                </a>
+                              {% if s.completed %}
+                                <span class="flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100/80 text-green-700 border border-green-200">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5 animate-pulse"></span> Complete
+                                </span>
+                                {% else %}
+                                <span class="flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100/80 text-amber-700 border border-amber-200">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse"></span> In Progress
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div class="flex items-center text-sm text-slate-500 font-medium">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                {{ s.started_at|date:"M d, Y" }} <span class="mx-2 opacity-30">•</span> {{ s.started_at|date:"H:i" }}
+                            </div>
+                        </div>
+                    </div>
 
-          <div class="flex items-center space-x-4">
-            <div class="text-right">
-              <div class="text-2xl font-bold text-slate-900">
-                {{ s.total_score }}/100
-              </div>
-              <div class="text-sm text-slate-600">Score</div>
+                    <div class="flex items-center justify-between md:justify-end space-x-8">
+                        <div class="text-center md:text-right">
+                            <div class="text-3xl font-black text-slate-900 leading-none">
+                                {{ s.total_score|default:"0" }}<span class="text-slate-400 text-sm font-bold">/100</span>
+                            </div>
+                            <div class="text-[10px] uppercase font-black text-slate-400 tracking-tighter mt-1">AI Performance Score</div>
+                        </div>
+                        
+                        <div class="flex items-center space-x-3">
+                            <a href="{% url 'interviewapp:next_question' s.id %}" 
+                               class="px-6 py-2.5 bg-primary-600 text-white rounded-2xl font-bold text-sm hover:bg-primary-700 shadow-lg shadow-primary-500/30 transition-all active:scale-95">
+                              {% if s.completed %}Review Result{% else %}Continue{% endif %}
+                            </a>
+                            
+                            <form method="post" action="{% url 'interviewapp:delete_session' s.id %}" onsubmit="return confirm('Permanently delete this session?');">
+                                {% csrf_token %}
+                                <button type="submit" class="p-2.5 text-red-500 hover:bg-red-50 rounded-2xl border border-transparent hover:border-red-100 transition-all group-hover:opacity-100 opacity-60">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+<div class="mt-8 relative">
+    <div class="flex justify-between items-end mb-2">
+        <div class="text-xs font-bold text-slate-500 uppercase tracking-wide">Completion Level</div>
+        <div class="flex items-center space-x-2">
+            <span class="text-xs font-black text-primary-600 bg-primary-100/50 px-2 py-0.5 rounded-lg border border-primary-200/50">
+                {% if s.total_questions > 0 %}
+                    {% widthratio s.answered_count s.total_questions 100 %}%
+                {% else %}0%{% endif %}
+            </span>
+            <span class="text-[10px] font-bold text-slate-400">{{ s.answered_count }} / {{ s.total_questions }} Questions</span>
+        </div>
+    </div>
+
+    <div class="w-full bg-slate-200/30 rounded-full h-3.5 border border-white/40 shadow-inner overflow-hidden relative">
+        {% if s.total_questions > 0 %}
+            {% with percent=s.answered_count|stringformat:"i" %}
+            <div class="h-full bg-gradient-to-r from-primary-500 via-primary-600 to-indigo-600 rounded-full transition-all duration-1000 ease-out relative shadow-lg"
+                 style="width: {% widthratio s.answered_count s.total_questions 100 %}%">
+                 
+                {% if not s.completed %}
+                <div class="absolute inset-0 opacity-20 bg-[linear-gradient(45deg,rgba(255,255,255,.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.2)_50%,rgba(255,255,255,.2)_75%,transparent_75%,transparent)] bg-[length:20px_20px] animate-[progress-stripe_2s_linear_infinite]"></div>
+                {% endif %}
+
+                <div class="absolute right-0 top-0 bottom-0 w-4 bg-white/30 blur-[4px] rounded-full"></div>
+                <div class="absolute right-0 top-0 bottom-0 w-1 bg-white/60 rounded-full"></div>
             </div>
-            <a
-              href="{% url 'interviewapp:next_question' s.id %}"
-              class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
-            >
-              {% if s.completed %}Review{% else %}Continue{% endif %}
+            {% endwith %}
+        {% else %}
+            <div class="h-full bg-slate-300/20 rounded-full" style="width: 0%"></div>
+        {% endif %}
+    </div>
+</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="py-16 flex flex-col items-center text-center">
+            <div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6 border-4 border-white shadow-xl">
+                <svg class="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                </svg>
+            </div>
+            <h4 class="text-xl font-bold text-slate-900 mb-2">No interviews found</h4>
+            <p class="text-slate-500 max-w-xs mb-8">Ready to ace that job? Your future self will thank you for starting today.</p>
+            <a href="{% url 'interviewapp:start_session' %}" 
+               class="inline-flex items-center px-8 py-3 bg-slate-900 text-white rounded-2xl font-bold hover:bg-primary-600 transition-all shadow-xl">
+                Launch First Session
+                <svg class="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
             </a>
-            <form
-              method="post"
-              action="{% url 'interviewapp:delete_session' s.id %}"
-              onsubmit="return confirm('Delete this session permanently?');"
-            >
-              {% csrf_token %}
-              <button
-                type="submit"
-                class="px-3 py-2 text-sm border border-red-600 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition"
-              >
-                Delete
-              </button>
-            </form>
-          </div>
         </div>
-
-        <!-- Progress bar -->
-        <div class="mt-4">
-          <div class="flex justify-between text-sm text-slate-600 mb-1">
-            <span>Progress</span>
-            <span
-              >{{ s.answered_count }}/{{ s.total_questions }} questions</span
-            >
-          </div>
-          <div class="w-full bg-slate-200 rounded-full h-2">
-            {% if s.total_questions > 0 %}
-            <div
-              class="bg-primary-600 h-2 rounded-full transition-all duration-500"
-              style="width: {% widthratio s.answered_count s.total_questions 100 %}%"
-            ></div>
-            {% else %}
-            <div
-              class="bg-primary-600 h-2 rounded-full"
-              style="width: 0%"
-            ></div>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-      {% endfor %}
+        {% endif %}
     </div>
-    {% else %}
-    <div class="p-12 text-center">
-      <svg
-        class="w-16 h-16 text-slate-300 mx-auto mb-4"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="1"
-          d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-        ></path>
-      </svg>
-      <h4 class="text-lg font-medium text-slate-900 mb-2">
-        No interview sessions yet
-      </h4>
-      <p class="text-slate-600 mb-6">
-        Start your first mock interview to begin your preparation journey.
-      </p>
-      <a
-        href="{% url 'interviewapp:start_session' %}"
-        class="inline-flex items-center bg-primary-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-primary-700 transition-colors"
-      >
-        Start Your First Interview
-        <svg
-          class="ml-2 w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M13 7l5 5m0 0l-5 5m5-5H6"
-          ></path>
-        </svg>
-      </a>
-    </div>
-    {% endif %}
-  </div>
+</div>
 </div>
 
 <script>

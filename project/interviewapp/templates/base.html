@@ -48,7 +48,28 @@
         },
       };
     </script>
+    <style>
+            /* Glassmorphism utility */
+      .glass-card {
+          background: rgba(255, 255, 255, 0.7);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+      }
 
+      /* Refined Shadow for modern UI */
+      .modern-shadow {
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+      }
+
+      /* Hover lift effect for cards */
+      .hover-lift {
+          transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      .hover-lift:hover {
+          transform: translateY(-4px);
+      }
+    </style>
     <!-- Alpine.js -->
     <script
       defer
@@ -64,10 +85,21 @@
 
     {% block extra_head %}{% endblock %}
   </head>
-  <body class="font-sans bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+<body class="font-sans text-slate-900 min-h-screen flex flex-col relative overflow-x-hidden bg-white">
+    
+    <div class="fixed inset-0 -z-10 pointer-events-none overflow-hidden bg-slate-50">
+        <div class="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-indigo-500/30 rounded-full blur-[120px] animate-pulse"></div>
+        
+        <div class="absolute bottom-[10%] right-[-5%] w-[500px] h-[500px] bg-teal-400/25 rounded-full blur-[100px]" 
+             style="animation: float 12s ease-in-out infinite;"></div>
+             
+        <div class="absolute inset-0 opacity-[0.05] pointer-events-none" 
+             style="background-image: radial-gradient(#4F46E5 1px, transparent 1px); background-size: 32px 32px;"></div>
+    </div>
     <!-- Navigation -->
     <!-- base.html - around line where navbar is included -->
     {% block navbar %} {% include 'partials/nav.html' %} {% endblock %}
+
 
     <!-- Messages Container -->
     <div id="messages-container" class="container mx-auto px-4 mt-4 max-w-7xl">
@@ -75,7 +107,7 @@
     </div>
 
     <!-- Main Content -->
-    <main class="flex-grow container mx-auto px-4 py-8 max-w-7xl">
+<main class="flex-grow container mx-auto px-3 py-3 max-w-7xl relative z-10">
       {% block content %}{% endblock %}
     </main>
 
@@ -226,6 +258,17 @@
           }
         });
       });
+      document.addEventListener('mousemove', (e) => {
+    const x = e.clientX / window.innerWidth;
+    const y = e.clientY / window.innerHeight;
+    
+    // Select the background orbs
+    const orbs = document.querySelectorAll('.fixed > div');
+    orbs.forEach((orb, index) => {
+        const speed = (index + 1) * 20;
+        orb.style.transform = `translate(${x * speed}px, ${y * speed}px)`;
+    });
+});
     </script>
 
     {% block extra_scripts %}{% endblock %}

@@ -184,7 +184,8 @@ def user_logout(request):
 
 @login_required
 def dashboard(request):
-    sessions = InterviewSession.objects.filter(user=request.user).order_by('-started_at')[:10]
+    sessions = InterviewSession.objects.filter(user=request.user).order_by('-started_at')
+    print(len(sessions)) 
     
     # Calculate average score
     total_scores = []
@@ -231,7 +232,7 @@ def start_session(request):
 
             # 1) Try LLM generation first
             try:
-                llm_questions = generate_questions_groq(role=role_for_prompt, n=n, difficulty=3, model="llama-3.1-8b-instant")
+                llm_questions = generate_questions_groq(role=role_for_prompt, n=n, difficulty=2, model="llama-3.1-8b-instant")
             except Exception as e:
                 logger.exception("Groq generation error: %s", e)
                 messages.warning(request, "AI question generation temporarily failed — using fallback questions.")
@@ -250,7 +251,7 @@ def start_session(request):
                     signature=sig,
                     defaults={
                         "role": raw_role,
-                        "difficulty": qobj.get("difficulty", 3),
+                        "difficulty": qobj.get("difficulty", 2),
                         "text": text,
                         "keywords": qobj.get("keywords", ""),
                         "source": "llm"
@@ -357,7 +358,7 @@ def submit_answer(request, session_id):
 
     form = AnswerForm(request.POST, request.FILES)
     if form.is_valid():
-        ans.answer_text = form.cleaned_data.get('answer_text', '').strip()
+        ans.answer_text = form.data.get('answer_text', '').strip() #fixed this problem 
         ans.audio_file = request.FILES.get('audio_file')
 
         # ✅ SAVE FIRST so audio exists on disk
@@ -385,8 +386,22 @@ def submit_answer(request, session_id):
             'improvement_tips',
             'processed'
         ])
+        ans.processed = True
+        ans.save()
 
-        return redirect('interviewapp:next_question', session_id=session.id)
+        # 🔥 AUTO END SESSION
+        if session.current_index + 1 >= session.total_questions:
+            session.completed = True
+            session.completed_at = timezone.now()
+            session.save(update_fields=["completed", "completed_at"])
+            messages.success(request, "Interview completed successfully!")
+            return redirect("interviewapp:session_summary", session_id=session.id)
+
+        # Otherwise go to next question
+        session.current_index += 1
+        session.save(update_fields=["current_index"])
+
+        return redirect("interviewapp:next_question", session_id=session.id)
 
     return render(request, 'interview.html', {
         'question': ans.question,

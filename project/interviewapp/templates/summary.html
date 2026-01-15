@@ -2,222 +2,225 @@
 {% block title %}Session Summary - AI Mock Interview{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto animate-fade-in">
-  <!-- Header -->
-  <div class="mb-10">
-    <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
-      <div>
-        <h1 class="text-3xl font-bold text-slate-900">Interview Session Summary</h1>
-        <p class="text-slate-600">Review your performance and feedback</p>
-      </div>
-      <div class="mt-4 md:mt-0">
+<div class="max-w-6xl mx-auto animate-fade-in relative z-10 pb-12">
+    <div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+            <h1 class="text-4xl font-black text-slate-900 tracking-tight mb-2">
+                Interview <span class="text-primary-600">Summary</span>
+            </h1>
+            <p class="text-slate-500 font-medium">Detailed performance breakdown and growth insights</p>
+        </div>
         <a href="{% url 'interviewapp:download_report' session.id %}"
-                class="bg-primary-600 text-white px-6 py-3 rounded-xl hover:bg-primary-700 transition-colors font-semibold flex items-center">
-          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-          </svg>
-          Download Report
+           class="inline-flex items-center bg-primary-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-500/30 transform hover:-translate-y-1 active:scale-95">
+            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            Export Report
         </a>
-      </div>
     </div>
 
-    <!-- Session Info Card -->
-    <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div>
-          <div class="text-sm text-slate-600 mb-1">Role</div>
-          <div class="text-lg font-semibold text-slate-900">{{ session.role }}</div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="glass-panel p-6 rounded-3xl border border-white/60 shadow-sm">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Target Role</p>
+            <p class="text-xl font-bold text-slate-900">{{ session.role }}</p>
         </div>
-        <div>
-          <div class="text-sm text-slate-600 mb-1">Date</div>
-          <div class="text-lg font-semibold text-slate-900">
-            {{ session.started_at|date:"F d, Y" }}</div>
+        <div class="glass-panel p-6 rounded-3xl border border-white/60 shadow-sm">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Completion Date</p>
+            <p class="text-xl font-bold text-slate-900">{{ session.started_at|date:"M d, Y" }}</p>
         </div>
-        <div>
-          <div class="text-sm text-slate-600 mb-1">Duration</div>
-          <div class="text-lg font-semibold text-slate-900">
-            {{ duration|default:0 }} minutes
-          </div>
+        <div class="glass-panel p-6 rounded-3xl border border-white/60 shadow-sm">
+            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Duration</p>
+            <p class="text-xl font-bold text-slate-900">{{ duration|default:0 }} Minutes</p>
         </div>
-      </div>
     </div>
-  </div>
 
-  <!-- Overall Score (JS computes percent; template only renders avg value) -->
-  <div class="bg-gradient-to-r from-primary-600 to-accent-500 rounded-2xl shadow-lg p-8 text-white mb-10">
-    <div class="flex flex-col md:flex-row items-center justify-between">
-      <div>
-        <h2 class="text-2xl font-bold mb-2">Overall Performance</h2>
-        <p class="text-primary-100">Average score across all questions</p>
-      </div>
-
-      <div class="mt-6 md:mt-0 flex items-center">
-        <div class="relative w-36 h-36" data-avg="{{ avg|default:0 }}">
-          <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-            <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="10"/>
-            <circle id="summary-progress-circle" cx="50" cy="50" r="45" fill="none" stroke="white" stroke-width="10"
-                    stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283"/>
-            <text x="50" y="54" text-anchor="middle" font-size="20" font-weight="700" fill="white">
-              {{ avg|default:0|floatformat:1 }}
-            </text>
-            <text x="50" y="69" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.9)">/ 10</text>
-          </svg>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Question-wise Feedback -->
-  <div class="mb-10">
-    <h2 class="text-2xl font-bold text-slate-900 mb-6">Detailed Feedback</h2>
-
-    <div class="space-y-6">
-      {% for a in answers %}
-      {# safe default score variable so comparisons never break #}
-      {% with score=a.score|default:0 %}
-      <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden transform transition-all hover:shadow-xl">
-        <div class="p-6 md:p-8">
-          <div class="flex flex-col md:flex-row md:items-start justify-between mb-6">
-            <div class="mb-4 md:mb-0 md:mr-6">
-              <div class="flex items-center space-x-3 mb-3">
-                <span class="px-3 py-1 bg-primary-50 text-primary-700 rounded-full text-sm font-medium">
-                  Question {{ forloop.counter }}
-                </span>
-             {% with score=a.score|default:0 %}
-  <span class="px-3 py-1 {% if score|add:0 >= 8 %}bg-green-100 text-green-700{% elif score|add:0 >= 6 %}bg-amber-100 text-amber-700{% else %}bg-red-100 text-red-700{% endif %} rounded-full text-sm font-medium">
-    Score: {{ score|default:0 }}/10
-  </span>
-{% endwith %}
-
-              </div>
-              <h3 class="text-xl font-semibold text-slate-900 mb-3">{{ a.question.text }}</h3>
+    <div class="glass-panel bg-white/40 border border-white/80 rounded-[2.5rem] p-10 shadow-2xl mb-12 relative overflow-hidden">
+        <div class="absolute -top-24 -right-24 w-64 h-64 bg-primary-500/10 blur-[80px] rounded-full"></div>
+        
+        <div class="flex flex-col md:flex-row items-center justify-between gap-10 relative z-10">
+            <div class="text-center md:text-left">
+                <h2 class="text-3xl font-black text-slate-900 mb-4">Overall Performance</h2>
+                <p class="text-slate-600 max-w-sm leading-relaxed mb-6">
+                    This score reflects your consistency, relevance, and technical accuracy across all questions.
+                </p>
+                <div class="flex gap-2 justify-center md:justify-start">
+                    <span class="px-4 py-1.5 bg-primary-100 text-primary-700 rounded-full text-xs font-bold">Excellent Logic</span>
+                    <span class="px-4 py-1.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold">Room for Depth</span>
+                </div>
             </div>
-<div class="text-3xl font-bold 
-{% if score|add:0 >= 8 %}
-    text-green-600
-{% elif score|add:0 >= 6 %}
-    text-amber-600
-{% else %}
-    text-red-600
-{% endif %}
-">
-    {{ score|default:0 }}/10
+
+            <div class="relative w-44 h-44 shrink-0" data-avg="{{ avg|default:0 }}">
+                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="44" fill="none" stroke="#E2E8F0" stroke-width="10"/>
+                    <circle id="summary-progress-circle" cx="50" cy="50" r="44" fill="none" stroke="url(#gradient)" stroke-width="10"
+                            stroke-linecap="round" stroke-dasharray="276" stroke-dashoffset="276" class="transition-all duration-1000 ease-out"/>
+                    <defs>
+                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#4F46E5" />
+                            <stop offset="100%" stop-color="#06B6D4" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <span class="text-5xl font-black text-slate-900 leading-none">{{ avg|default:0|floatformat:1 }}</span>
+                    <span class="text-xs font-bold text-slate-400 mt-2">OUT OF 10</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-12">
+        <h2 class="text-2xl font-black text-slate-900 mb-8 flex items-center">
+            <span class="w-2 h-8 bg-primary-600 rounded-full mr-4"></span>
+            Question-by-Question Analysis
+        </h2>
+
+        <div class="space-y-8">
+            {% for a in answers %}
+            {% with score=a.score|default:0 %}
+            <div class="glass-card interactive-lift rounded-[2rem] border border-white/60 shadow-md overflow-hidden bg-white/40">
+                <div class="p-8">
+                    <div class="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3 mb-4">
+                                <span class="px-3 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest">
+                                    Question {{ forloop.counter }}
+                                </span>
+                                <span class="flex items-center px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border
+                                    {% if score|add:0 >= 8 %}bg-green-100 text-green-700 border-green-200{% elif score|add:0 >= 6 %}bg-amber-100 text-amber-700 border-amber-200{% else %}bg-red-100 text-red-700 border-red-200{% endif %}">
+                                    <span class="w-2 h-2 rounded-full mr-2 {% if score|add:0 >= 8 %}bg-green-500{% elif score|add:0 >= 6 %}bg-amber-500{% else %}bg-red-500{% endif %}"></span>
+                                    {% if score|add:0 >= 8 %}Exceptional{% elif score|add:0 >= 6 %}Satisfactory{% else %}Needs Focus{% endif %}
+                                </span>
+                            </div>
+                            <h3 class="text-2xl font-bold text-slate-900 leading-snug">{{ a.question.text }}</h3>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-4xl font-black {% if score|add:0 >= 8 %}text-green-600{% elif score|add:0 >= 6 %}text-amber-600{% else %}text-red-600{% endif %}">
+                                {{ score|default:0 }}<span class="text-slate-300 text-xl">/10</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div>
+                            <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Your Answer</h4>
+                            <div class="bg-white/60 border border-white rounded-2xl p-6 shadow-inner">
+                                <p class="text-slate-700 leading-relaxed italic">"{{ a.answer_text|default:"No answer provided" }}"</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-xs font-black text-primary-400 uppercase tracking-widest mb-3">AI Analysis & Tips</h4>
+                            <div class="bg-primary-500/5 border border-primary-500/10 rounded-2xl p-6 ">
+                                <p class="text-slate-700 leading-relaxed mb-6">{{ a.feedback|default:"No feedback available." }}</p>
+                                
+                                {% if a.improvement_tips %}
+                                <div class="space-y-3 border-t border-primary-500/10 pt-4">
+                                    {% for tip in a.improvement_tips %}
+                                    <div class="flex items-start">
+                                        <svg class="w-4 h-4 text-primary-500 mt-1 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                                        <span class="text-sm font-medium text-slate-600">{{ tip }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endwith %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="glass-panel rounded-[2.5rem] border border-white/60 p-10 shadow-xl mb-12">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-10 items-start">
+            <div class="lg:col-span-2">
+                <h3 class="text-2xl font-black text-slate-900 mb-6 flex items-center">
+                    <svg class="w-6 h-6 mr-3 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    Strategic Growth Path
+                </h3>
+                <div class="space-y-8">
+                    <div>
+                        <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Primary Recommendation</h4>
+                        <p class="text-lg text-slate-700 font-bold leading-relaxed">{{ overall_tip|default:"Practice concise explanations and focus on your weaker areas." }}</p>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Curated Resources</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {% for r in resources %}
+                            <div class="flex items-center p-4 bg-white/40 rounded-xl border border-white/80 text-sm font-bold text-slate-700">
+                                <span class="w-2 h-2 rounded-full bg-primary-500 mr-3"></span> {{ r }}
+                            </div>
+                            {% empty %}
+                            <p class="text-slate-500 text-sm">No resources suggested.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+<div class="space-y-6">
+    <div class="glass-panel p-8 rounded-[2.5rem] border-2 border-primary-100 bg-gradient-to-b from-white to-primary-50/30 shadow-xl relative overflow-hidden group">
+        <div class="absolute -top-12 -right-12 w-32 h-32 bg-primary-500/5 rounded-full blur-2xl group-hover:bg-primary-500/10 transition-colors"></div>
+        
+        <div class="relative z-10">
+            <div class="w-14 h-14 bg-white rounded-2xl shadow-sm border border-primary-100 flex items-center justify-center mb-6 mx-auto">
+                <svg class="w-7 h-7 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+            </div>
+            
+            <div class="text-center mb-8">
+                <h4 class="text-2xl font-black text-slate-900 mb-2 tracking-tight">Ready to improve?</h4>
+                <p class="text-slate-500 text-sm font-medium leading-relaxed">
+                    Apply your new insights in a fresh round of practice questions.
+                </p>
+            </div>
+
+            <a href="{% url 'interviewapp:start_session' %}" 
+               class="flex items-center justify-center w-full py-4 bg-primary-600 text-white rounded-2xl font-black text-lg hover:bg-primary-700 shadow-lg shadow-primary-500/25 transition-all transform hover:-translate-y-1 active:scale-95">
+                Restart Session
+                <svg class="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                </svg>
+            </a>
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-3">
+        <form method="post" action="{% url 'interviewapp:delete_session' session.id %}" onsubmit="return confirm('Permanently delete session history?');" class="w-full">
+            {% csrf_token %}
+            <button type="submit" 
+                    class="w-full py-4 bg-red-50 text-red-600 font-bold rounded-2xl border border-red-100/50 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all flex items-center justify-center group">
+                <svg class="w-4 h-4 mr-2 opacity-60 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+                Delete Session
+            </button>
+        </form>
+    </div>
 </div>
-
-          </div>
-
-          <!-- Answer -->
-          <div class="mb-6">
-            <h4 class="text-sm font-medium text-slate-700 mb-2">Your Answer</h4>
-            <div class="bg-slate-50 rounded-xl p-4">
-              <p class="text-slate-700">{{ a.answer_text|default:"No answer provided" }}</p>
-            </div>
-          </div>
-
-          <!-- Feedback -->
-          <div>
-            <h4 class="text-sm font-medium text-slate-700 mb-2">AI Feedback</h4>
-            <div class="bg-gradient-to-r from-primary-50 to-white rounded-xl p-4 border border-primary-100">
-              <p class="text-slate-700">{{ a.feedback|default:"No feedback available." }}</p>
-
-              {% if a.improvement_tips %}
-              <div class="mt-4 pt-4 border-t border-primary-200">
-                <h5 class="text-sm font-medium text-slate-700 mb-2">Improvement Tips</h5>
-                <ul class="list-disc pl-5 text-slate-600 space-y-1">
-                  {% for tip in a.improvement_tips %}
-                  <li>{{ tip }}</li>
-                  {% endfor %}
-                </ul>
-              </div>
-              {% endif %}
-            </div>
-          </div>
         </div>
-      </div>
-      {% endwith %}
-      {% endfor %}
     </div>
-  </div>
-
-  
-
-  <!-- Performance Insights -->
-  <div class="bg-slate-50 rounded-2xl p-8">
-    <h3 class="text-xl font-semibold text-slate-900 mb-6">Performance Insights</h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-      <div class="mt-6 md:col-span-2">
-        <h4 class="text-lg font-semibold">Overall Tip</h4>
-        <p class="text-slate-700">{{ overall_tip|default:"Practice concise explanations and focus on your weaker areas." }}</p>
-
-        <h4 class="mt-4 text-lg font-semibold">Resources</h4>
-        <ul class="list-disc pl-6">
-          {% for r in resources %}
-            <li>{{ r }}</li>
-          {% empty %}
-            <li>No resources suggested.</li>
-          {% endfor %}
-        </ul>
-      </div>
-      <form method="post" action="{% url 'interviewapp:delete_session' session.id %}"
-      onsubmit="return confirm('This will permanently delete this interview session. Continue?');">
-    {% csrf_token %}
-    <button type="submit"
-            class="px-6 py-3 border border-red-600 text-red-600 hover:bg-red-600 hover:text-white rounded-xl transition">
-        Delete Session
-    </button>
-</form>
-
-    </div>
-  </div>
-
-  <!-- Action Buttons -->
-  <div class="flex flex-col sm:flex-row items-center justify-between bg-white rounded-2xl shadow-lg p-6 mb-10">
-    <div class="mb-4 sm:mb-0">
-      <h3 class="text-lg font-semibold text-slate-900 mb-2">Ready for another round?</h3>
-      <p class="text-slate-600">Practice makes perfect. Try again with different questions.</p>
-    </div>
-    <div class="flex space-x-4">
-      <a href="{% url 'interviewapp:dashboard' %}"
-         class="px-6 py-3 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl transition-colors font-medium">
-        Back to Dashboard
-      </a>
-      <a href="{% url 'interviewapp:start_session' %}"
-         class="px-6 py-3 bg-primary-600 text-white hover:bg-primary-700 rounded-xl transition-colors font-medium">
-        Start New Interview
-      </a>
-    </div>
-  </div>
 </div>
 
 <script>
-  {% comment %} function downloadReport() {
-    showToast && showToast('Preparing your report download...', 'info');
-    setTimeout(() => {
-      showToast && showToast('Report downloaded successfully!', 'success');
-      const link = document.createElement('a');
-      link.href = '#';
-      link.download = `interview_report_${new Date().toISOString().slice(0,10)}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }, 1500);
-  } {% endcomment %}
-
-  // Animate the circular progress using the data-avg attribute
-  document.addEventListener('DOMContentLoaded', function () {
-    const el = document.querySelector('[data-avg]');
-    if (!el) return;
-    const avg = parseFloat(el.getAttribute('data-avg')) || 0;
-    const pct = Math.max(0, Math.min(100, (avg / 10) * 100));
-    const circ = 283; // circumference for r=45
-    const offset = Math.round(circ - (pct / 100) * circ);
-    const circle = document.getElementById('summary-progress-circle') || document.getElementById('progress-circle');
-    if (circle) {
-      circle.style.strokeDashoffset = circ; // start full
-      circle.style.transition = 'stroke-dashoffset 1s ease-out';
-      setTimeout(() => { circle.style.strokeDashoffset = offset; }, 80);
-    }
-  });
+    // Animate circular progress on load
+    document.addEventListener('DOMContentLoaded', function () {
+        const el = document.querySelector('[data-avg]');
+        if (!el) return;
+        const avg = parseFloat(el.getAttribute('data-avg')) || 0;
+        const pct = (avg / 10) * 100;
+        const circ = 276; // Circumference for r=44
+        const offset = Math.round(circ - (pct / 100) * circ);
+        const circle = document.getElementById('summary-progress-circle');
+        
+        if (circle) {
+            circle.style.strokeDashoffset = circ;
+            setTimeout(() => { circle.style.strokeDashoffset = offset; }, 100);
+        }
+    });
 </script>
 {% endblock %}
