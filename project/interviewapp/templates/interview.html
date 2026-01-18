@@ -2,43 +2,136 @@
 {% block title %}Live Interview - AI Mock Session{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto animate-fade-in relative z-10 pb-12">
-    <div class="mb-10">
-        <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-            <div class="space-y-2">
-                <nav class="flex items-center space-x-3 text-[10px] font-black uppercase tracking-[0.2em] text-primary-600">
-                    <span class="relative flex h-3 w-3">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                    </span>
-                    <span>Active Evaluation Mode</span>
-                </nav>
-                <h1 class="text-4xl font-black text-slate-900 tracking-tight">
-                    {{ session.role|capfirst }} <span class="text-slate-400 font-light">Session</span>
-                </h1>
-            </div>
+{% comment %} <div class="fixed top-28 right-8 z-[100] w-32 h-32 md:w-44 md:h-44 pointer-events-none">
+    <div class="relative w-full h-full pointer-events-auto group/cam">
+        <div class="w-full h-full rounded-[2.5rem] overflow-hidden bg-slate-900 border-4 border-white shadow-[0_20px_50px_rgba(0,0,0,0.2)] backdrop-blur-md relative">
+            <video id="cameraPreview" autoplay muted playsinline class="w-full h-full object-cover mirrored-video bg-slate-800"></video>
             
-            <div class="flex items-center bg-white/40 backdrop-blur-md rounded-2xl p-4 border border-white/60 shadow-sm">
-                <div class="text-right mr-4 border-r border-slate-200 pr-4">
-                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Progress</div>
-                    <div class="text-2xl font-black text-primary-600 leading-none">
-                        {{ session.current_index }}<span class="text-slate-300">/{{ session.total_questions }}</span>
-                    </div>
+            <div id="camera-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-center px-4">
+                <div class="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center mb-2">
+                    <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-width="2"></path></svg>
                 </div>
-                <div class="flex flex-col items-center">
-                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</div>
-                    <div id="recording-status-ui" class="text-sm font-bold text-slate-700">Ready</div>
-                </div>
+                <button type="button" id="startCameraBtn" class="text-[9px] font-black uppercase tracking-widest text-white bg-primary-600 px-3 py-1.5 rounded-full hover:bg-primary-500 transition-all shadow-lg">
+                    Enable
+                </button>
+            </div>
+
+            <div id="rec-badge" class="absolute top-3 left-4 hidden items-center space-x-2">
+                <span class="flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                </span>
+                <span class="text-[8px] font-black text-white uppercase tracking-[0.2em] drop-shadow-md">Live AI Scan</span>
+            </div>
+
+            <button type="button" id="stopCameraBtn" disabled class="absolute bottom-3 right-3 p-2 bg-red-500/90 text-white rounded-xl opacity-0 group-hover/cam:opacity-100 transition-all hover:scale-110">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-width="3"></path></svg>
+            </button>
+        </div>
+
+        <div class="absolute -inset-1 gradient-bg opacity-20 blur-xl -z-10 rounded-[2.5rem]"></div>
+    </div>
+</div> {% endcomment %}
+
+<div class="max-w-7xl mx-auto animate-fade-in relative z-10 pb-12">
+<div class="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div class="space-y-2">
+        <nav class="flex items-center space-x-3 text-[10px] font-black uppercase tracking-[0.2em] text-primary-600">
+            <span class="relative flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+            </span>
+            <span>Active Evaluation Mode</span>
+        </nav>
+        <h1 class="text-4xl font-black text-slate-900 tracking-tight">
+            {{ session.role|capfirst }} <span class="text-slate-400 font-light">Session</span>
+        </h1>
+    </div>
+    
+    <div class="flex items-center bg-white/40 backdrop-blur-md rounded-[2rem] p-2 pr-6 border border-white/60 shadow-xl relative group/header">
+        
+        <div class="absolute -top-12 right-0 opacity-0 group-hover/header:opacity-100 transition-opacity duration-300 pointer-events-none">
+            <div class="bg-slate-900 text-white text-[10px] font-bold px-4 py-2 rounded-xl shadow-xl whitespace-nowrap relative">
+                Enable camera for AI behavioral coaching
+                <div class="absolute -bottom-1 right-10 w-2 h-2 bg-slate-900 rotate-45"></div>
             </div>
         </div>
 
-        <div class="w-full bg-slate-200/30 rounded-full h-4 p-1 border border-white/40 shadow-inner overflow-hidden">
-            <div id="session-progress" 
-                 class="h-full bg-gradient-to-r from-primary-500 via-indigo-600 to-primary-500 rounded-full transition-all duration-1000 ease-out shadow-lg relative"
-                 style="width: 0%">
+        <div class="relative w-24 h-20 md:w-28 md:h-20 group mr-6">
+            <div class="w-full h-full rounded-2xl overflow-hidden bg-slate-900 border-2 border-white shadow-md relative cursor-pointer overflow-hidden" onclick="document.getElementById('startCameraBtn').click()">
+                <video id="cameraPreview" autoplay muted playsinline class="w-full h-full object-cover mirrored-video bg-slate-800"></video>
+                
+                <div id="camera-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/60 backdrop-blur-[1px] text-white hover:bg-slate-900/40 transition-all">
+                    <button type="button" id="startCameraBtn" class="flex flex-col items-center">
+                        <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-width="2.5"></path>
+                        </svg>
+                        <span class="text-[8px] font-black uppercase tracking-tighter">Turn On</span>
+                    </button>
+                </div>
+            </div>
+            
+            <button type="button" id="stopCameraBtn" disabled class="absolute -top-2 -right-2 w-7 h-7 bg-red-500 text-white rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-30 border-2 border-white">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-width="3"></path></svg>
+            </button>
+        </div>
+
+        <div class="flex items-center space-x-6">
+            <div class="text-right border-r border-slate-200 pr-6">
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Session</div>
+                <div class="text-2xl font-black text-primary-600 leading-none tracking-tighter">
+                    {{ session.current_index }}<span class="text-slate-300 text-lg">/{{ session.total_questions }}</span>
+                </div>
+            </div>
+            
+            <div class="flex flex-col items-start">
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">AI Eye-Tracking</div>
+                <div id="recording-status-ui" class="flex items-center text-[11px] font-black text-slate-700 uppercase tracking-widest">
+                    <span class="w-2 h-2 rounded-full bg-slate-300 mr-2 transition-all duration-500 shadow-[0_0_10px_rgba(0,0,0,0)]" id="status-dot"></span>
+                    <span id="status-text">Standby</span>
+                </div>
             </div>
         </div>
     </div>
+</div>
+    <!-- Live Camera Section -->
+{% comment %} <div class="card-glass rounded-2xl p-4 mb-6">
+  <h3 class="text-lg font-semibold mb-3">
+    🎥 Live Interview Camera
+  </h3>
+
+  <video
+    id="cameraPreview"
+    autoplay
+    muted
+    playsinline
+    class="w-full max-w-sm rounded-xl border border-slate-300 bg-black mirrored-video"
+  ></video>
+<canvas id="frameCanvas" class="hidden"></canvas>
+  <div class="mt-4 flex gap-3">
+    <button
+      type="button"
+      id="startCameraBtn"
+      class="btn-gradient px-4 py-2 rounded-lg"
+    >
+      Start Camera
+    </button>
+
+    <button
+      type="button"
+      id="stopCameraBtn"
+      class="bg-slate-300 px-4 py-2 rounded-lg"
+      disabled
+    >
+      Stop Camera
+    </button>
+  </div>
+
+  <p class="text-sm text-slate-500 mt-3">
+    Camera is optional. It helps analyze confidence and engagement.
+  </p>
+</div> {% endcomment %}
+<canvas id="frameCanvas" class="hidden"></canvas>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         <div class="lg:col-span-5 space-y-8">
@@ -74,9 +167,11 @@
         {% csrf_token %}
         <input type="hidden" name="answer_id" value="{{ answer_id }}" />
 
-        <div class="glass-panel p-8 md:p-10 rounded-[3.5rem] border border-white/50 shadow-2xl relative">
+        <div class="glass-panel p-8 md:p-10 rounded-[3.5rem] border border-white/50 shadow-2xl relative overflow-hidden">
             
-            <div class="flex items-center space-x-8 mb-8 border-b border-slate-100/50">
+
+
+            <div class="flex items-center space-x-8 mb-8 border-b border-slate-100/50 pr-44">
                 <button type="button" id="tab-text" onclick="switchTab('text')" 
                         class="text-sm font-black text-primary-600 border-b-4 border-primary-600 pb-4 transition-all">
                     Text Response
@@ -150,7 +245,6 @@
                     Finish Question
                     <svg class="ml-3 w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
                 </button>
-                
             </div>
         </div>
     </form>
@@ -283,5 +377,138 @@
         const words = area.value.trim() ? area.value.trim().split(/\s+/).length : 0;
         wordCount.textContent = words;
     });
+
+    
+
+
+
+
 </script>
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  let cameraStream = null;
+  let frameInterval = null;
+
+  // 1. UI Elements
+  const video = document.getElementById("cameraPreview");
+  const canvas = document.getElementById("frameCanvas");
+  const startBtn = document.getElementById("startCameraBtn");
+  const stopBtn = document.getElementById("stopCameraBtn");
+  
+  // New Header specific elements
+  const statusText = document.getElementById("status-text");
+  const statusDot = document.getElementById("status-dot");
+  const statusLabelUI = document.getElementById("recording-status-ui");
+ const placeholder = document.getElementById("camera-placeholder");
+  // 2. AI Frame Capture Logic (Business Logic)
+  function captureFrame() {
+    if (!video.srcObject || video.videoWidth === 0) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(blob => {
+      if (!blob) return;
+
+      const formData = new FormData();
+      formData.append("frame", blob);
+      formData.append("session_id", "{{ session.id }}");
+
+      fetch("{% url 'interviewapp:upload_frame' %}", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => console.log("AI Frame uploaded:", data))
+      .catch(err => console.error("AI Upload failed:", err));
+
+    }, "image/jpeg", 0.7);
+  }
+
+  function startFrameCapture() {
+    if (!frameInterval) {
+      // Capture frame every 5 seconds for behavioral analysis
+      frameInterval = setInterval(captureFrame, 5000);
+    }
+  }
+
+  function stopFrameCapture() {
+    if (frameInterval) {
+      clearInterval(frameInterval);
+      frameInterval = null;
+    }
+  }
+
+  // 3. Camera Interaction Logic
+  startBtn.addEventListener("click", async () => {
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false
+      });
+
+      video.srcObject = cameraStream;
+      
+      // UI Updates: Header Placement Style
+      startBtn.classList.add("hidden"); // Remove play icon
+      stopBtn.disabled = false;
+      stopBtn.classList.remove("opacity-0"); // Show 'X' button
+      
+      // Update Status Labels
+      if(statusText) statusText.textContent = "Live";
+      if(statusDot) statusDot.classList.replace('bg-slate-300', 'bg-green-500');
+      if(statusLabelUI) statusLabelUI.textContent = "Live";
+      statusDot.classList.replace('bg-slate-300', 'bg-green-500');
+      statusDot.classList.add('shadow-[0_0_10px_rgba(34,197,94,0.6)]'); // Adds glow
+
+      placeholder.classList.add("hidden");
+      placeholder.style.display = "none";
+      // Start the background AI processing
+      startFrameCapture();
+      
+    } catch (e) {
+      console.error(e);
+      alert("Camera permission denied. Behavioral analysis disabled.");
+    }
+  });
+
+  stopBtn.addEventListener("click", () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+      video.srcObject = null;
+    }
+
+    // UI Updates: Revert to 'Ready' state
+    startBtn.classList.remove("hidden");
+    stopBtn.disabled = true;
+    stopBtn.classList.add("opacity-0");
+
+    // Update Status Labels back to original
+    if(statusText) statusText.textContent = "Ready";
+    if(statusDot) statusDot.classList.replace('bg-green-500', 'bg-slate-300');
+    if(statusLabelUI) statusLabelUI.textContent = "Ready";
+placeholder.classList.remove("hidden");
+        placeholder.style.display = "flex";
+        
+        // --- RESET UI STATUS ---
+        stopBtn.disabled = true;
+        stopBtn.classList.add("opacity-0");
+        statusText.textContent = "Standby";
+        statusDot.classList.replace('bg-green-500', 'bg-slate-300');
+        statusDot.classList.remove('shadow-[0_0_8px_rgba(34,197,94,0.6)]');
+    stopFrameCapture();
+  });
+});
+</script>
+
+{% endblock %}
+
 {% endblock %}

@@ -18,5 +18,7 @@ urlpatterns = [
     # path('start-simple/', views.start_session_simple, name='start_session_simple'),
     path("session/<int:session_id>/delete/", views.delete_session, name="delete_session"),
     path("session/<int:session_id>/download/",views.download_report,name="download_report"),
+    path("upload-frame/", views.upload_frame, name="upload_frame"),
+
 
 ]

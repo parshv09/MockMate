@@ -43,16 +43,13 @@ class InterviewSession(models.Model):
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
     total_questions = models.IntegerField(default=0)  # Track total questions
-    
+    video_stats_json = models.JSONField(null=True, blank=True)
+    video_feedback_json = models.JSONField(null=True, blank=True)
     @property
     def answered_count(self):
         return self.answers.filter(processed=True).count()
 
-    
-    @property
-    def total_questions(self):
-        # ✅ total questions in this session
-        return self.answers.count()
+
 
     @property
     def duration(self):
