@@ -200,18 +200,18 @@
         <div class="flex items-center space-x-2">
             <span class="text-xs font-black text-primary-600 bg-primary-100/50 px-2 py-0.5 rounded-lg border border-primary-200/50">
                 {% if s.total_questions > 0 %}
-                    {% widthratio s.answered_count s.total_questions 100 %}%
+                    {% widthratio s.answered_done s.total_questions 100 %}%
                 {% else %}0%{% endif %}
             </span>
-            <span class="text-[10px] font-bold text-slate-400">{{ s.answered_count }} / {{ s.total_questions }} Questions</span>
+            <span class="text-[10px] font-bold text-slate-400">{{ s.answered_done }} / {{ s.total_questions }} Questions</span>
         </div>
     </div>
 
     <div class="w-full bg-slate-200/30 rounded-full h-3.5 border border-white/40 shadow-inner overflow-hidden relative">
         {% if s.total_questions > 0 %}
-            {% with percent=s.answered_count|stringformat:"i" %}
+            {% with percent=s.answered_done|stringformat:"i" %}
             <div class="h-full bg-gradient-to-r from-primary-500 via-primary-600 to-indigo-600 rounded-full transition-all duration-1000 ease-out relative shadow-lg"
-                 style="width: {% widthratio s.answered_count s.total_questions 100 %}%">
+                 style="width: {{ s.progress_percent }}%">
                  
                 {% if not s.completed %}
                 <div class="absolute inset-0 opacity-20 bg-[linear-gradient(45deg,rgba(255,255,255,.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.2)_50%,rgba(255,255,255,.2)_75%,transparent_75%,transparent)] bg-[length:20px_20px] animate-[progress-stripe_2s_linear_infinite]"></div>

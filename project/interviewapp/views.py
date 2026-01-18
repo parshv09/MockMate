@@ -2,6 +2,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.http import HttpResponseForbidden
 from django.db import transaction
 from django.utils import timezone
@@ -16,7 +17,6 @@ from .qgen_groq import generate_questions_groq, signature_of_text  # qgen_groq f
 from .views_helpers import generate_question_stub  # if you keep stub in a helper; otherwise use local stub
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-# from reportlab.lib.units import inch
 from textwrap import wrap
 from django.http import HttpResponse
 from django.contrib.auth.models import User
@@ -25,6 +25,12 @@ from django.contrib import messages
 from .qgen_groq import generate_session_suggestions
 from django.http import HttpResponse, HttpResponseForbidden
 from .speech_utils import transcribe_audio
+from django.http import JsonResponse
+from interviewapp.video_behavior_utils import analyze_eye_contact_and_head
+from interviewapp.video_summary_utils import compute_video_confidence
+from interviewapp.video_ai_feedback import generate_video_behavior_feedback
+from collections import defaultdict
+from interviewapp.video_utils import count_faces
 
 ROLE_MAP = {
     'tech': 'Technical',
@@ -181,29 +187,38 @@ def user_login(request):
 def user_logout(request):
     logout(request)
     return redirect('interviewapp:login')
-
 @login_required
 def dashboard(request):
-    sessions = InterviewSession.objects.filter(user=request.user).order_by('-started_at')
-    print(len(sessions)) 
-    
-    # Calculate average score
+    sessions = InterviewSession.objects.filter(
+        user=request.user
+    ).order_by('-started_at')
+
     total_scores = []
     total_answered = 0
+
     for s in sessions:
-        total_answered += s.answered_count  # ✅ property access
+        answered = s.answers.filter(processed=True).count()
+
+        # ✅ SAFE runtime attributes
+        s.answered_done = answered
+        total_answered += answered
+
+        if s.total_questions > 0:
+            s.progress_percent = int((answered / s.total_questions) * 100)
+        else:
+            s.progress_percent = 0
 
         if s.total_score is not None:
             total_scores.append(s.total_score)
 
     avg_score = round(sum(total_scores) / len(total_scores), 2) if total_scores else None
 
-    
-    return render(request, 'dashboard.html', {
-        'sessions': sessions,
-        'avg_score': round(avg_score, 2) if avg_score else None,
-        'total_answered': total_answered
+    return render(request, "dashboard.html", {
+        "sessions": sessions,
+        "avg_score": avg_score,
+        "total_answered": total_answered
     })
+
 
 logger = logging.getLogger(__name__)
 
@@ -223,7 +238,7 @@ def start_session(request):
             n = form.cleaned_data['n_questions']
 
             # create the session
-            s = InterviewSession.objects.create(user=request.user, role=raw_role, total_score=None, current_index=0)
+            s = InterviewSession.objects.create(user=request.user, total_questions=n, role=raw_role, total_score=None, current_index=0)
 
             created = 0
             attempts = 0
@@ -301,6 +316,7 @@ def start_session(request):
 
             # 5) Create Answer placeholders in the exact order for this session
             # remove any existing answers for this session (defensive)
+# 5) Create Answer placeholders in the exact order for this session
             s.answers.all().delete()
             idx = 1
             for qid in created_question_ids:
@@ -308,6 +324,10 @@ def start_session(request):
                 Answer.objects.create(session=s, question=qobj, index=idx)
                 idx += 1
 
+            # ✅ ADD THIS LINE (CRITICAL)
+            s.total_questions = len(created_question_ids)
+            s.current_index = 1   # first question index (matches Answer.index)
+            s.save(update_fields=["total_questions", "current_index"])
             # 6) Redirect to the first question (next_question reads the next unprocessed answer)
             return redirect('interviewapp:next_question', session_id=s.id)
     else:
@@ -390,18 +410,36 @@ def submit_answer(request, session_id):
         ans.save()
 
         # 🔥 AUTO END SESSION
-        if session.current_index + 1 >= session.total_questions:
+# Decide next step based on remaining unprocessed answers
+        remaining = session.answers.filter(processed=False).exists()
+
+        if not remaining:
+            # 🔥 SAVE VIDEO STATS BEFORE COMPLETION
+            video_stats = SESSION_VIDEO_STATS.get(str(session.id))
+
+            if video_stats:
+                session.video_stats_json = video_stats
+
+                video_summary = compute_video_confidence(video_stats)
+
+                session.video_feedback_json = generate_video_behavior_feedback(
+                    role=session.role,
+                    confidence_score=video_summary["confidence_score"],
+                    presence_pct=video_summary["presence_pct"],
+                    eye_contact_pct=video_summary["eye_contact_pct"],
+                    movement_pct=video_summary["movement_pct"]
+                )
+
             session.completed = True
             session.completed_at = timezone.now()
-            session.save(update_fields=["completed", "completed_at"])
+            session.save()
+
             messages.success(request, "Interview completed successfully!")
             return redirect("interviewapp:session_summary", session_id=session.id)
 
-        # Otherwise go to next question
-        session.current_index += 1
-        session.save(update_fields=["current_index"])
-
         return redirect("interviewapp:next_question", session_id=session.id)
+
+
 
     return render(request, 'interview.html', {
         'question': ans.question,
@@ -441,14 +479,35 @@ def end_session(request, session_id):
     session = get_object_or_404(InterviewSession, id=session_id)
     if session.user != request.user:
         return HttpResponseForbidden()
-    
-    # Mark session as completed
+
+    # ✅ FETCH IN-MEMORY VIDEO STATS
+    video_stats = SESSION_VIDEO_STATS.get(str(session.id))
+
+    if video_stats:
+        # ✅ SAVE RAW STATS
+        session.video_stats_json = video_stats
+
+        # ✅ COMPUTE SUMMARY
+        video_summary = compute_video_confidence(video_stats)
+
+        # ✅ GENERATE AI FEEDBACK ONCE
+        video_feedback = generate_video_behavior_feedback(
+            role=session.role,
+            confidence_score=video_summary["confidence_score"],
+            presence_pct=video_summary["presence_pct"],
+            eye_contact_pct=video_summary["eye_contact_pct"],
+            movement_pct=video_summary["movement_pct"]
+        )
+
+        session.video_feedback_json = video_feedback
+
     session.completed = True
     session.completed_at = timezone.now()
     session.save()
-    
-    messages.success(request, f"Interview session {session.id} completed!")
-    return redirect('interviewapp:session_summary', session_id=session.id)
+
+    messages.success(request, "Interview completed successfully!")
+    return redirect("interviewapp:session_summary", session_id=session.id)
+
 
 
 
@@ -532,6 +591,27 @@ def session_summary(request, session_id):
         }
         print(session.total_score)
 
+
+    #video_stats = SESSION_VIDEO_STATS.get(str(session.id))
+
+    video_summary = None
+    video_ai_feedback = None
+
+    if session.video_stats_json:
+        video_summary = compute_video_confidence(session.video_stats_json)
+
+    if session.video_feedback_json:
+        video_ai_feedback = session.video_feedback_json
+
+    # if video_summary:
+    #     video_ai_feedback = generate_video_behavior_feedback(
+    #         role=session.role,
+    #         confidence_score=video_summary["confidence_score"],
+    #         presence_pct=video_summary["presence_pct"],
+    #         eye_contact_pct=video_summary["eye_contact_pct"],
+    #         movement_pct=video_summary["movement_pct"]
+    #     )
+
     # Render the template with both LLM suggestions and the simple parsed lists
     return render(request, 'summary.html', {
         'session': session,
@@ -541,7 +621,10 @@ def session_summary(request, session_id):
         'strengths': suggestions.get('strengths', strengths),
         'improvements': suggestions.get('improvements', improvements),
         'overall_tip': suggestions.get('overall_tip', ''),
-        'resources': suggestions.get('resources', [])
+        'resources': suggestions.get('resources', []),
+        "video_summary": video_summary,
+        "video_ai_feedback": video_ai_feedback
+
     })
 
 class SimpleStartForm(forms.Form):
@@ -625,126 +708,214 @@ def delete_session(request, session_id):
 
 
 
+import json
+from io import BytesIO
+from django.http import HttpResponse, HttpResponseForbidden
+from django.shortcuts import get_object_or_404
+from django.contrib.auth.decorators import login_required
+
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.units import inch
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether, PageBreak, HRFlowable
+
 @login_required
 def download_report(request, session_id):
     session = get_object_or_404(InterviewSession, id=session_id)
-
-    # 🔒 Security check
     if session.user != request.user:
         return HttpResponseForbidden()
 
+    # Data Calculations
     answers = session.answers.select_related('question').all().order_by('index')
-
-    # Recalculate average score (same logic as summary)
     scores = [a.score for a in answers if a.score is not None]
     avg = (sum(scores) / len(scores)) if scores else 0
-
-    # Duration
-    duration = 0
-    if session.started_at and session.completed_at:
-        duration = int((session.completed_at - session.started_at).total_seconds() / 60)
-
-    # Suggestions (strengths, improvements, tips)
-    suggestions = getattr(session, "suggestions_json", None) or {}
-
+    duration = int((session.completed_at - session.started_at).total_seconds() / 60) if session.completed_at else 0
+    
+    # PDF Setup
     response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = (
-        f'attachment; filename="Interview_Report_Session_{session.id}.pdf"'
+    response["Content-Disposition"] = f'attachment; filename="AI_Interview_Report_{session.id}.pdf"'
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, 
+        pagesize=A4, 
+        rightMargin=50, leftMargin=50, topMargin=40, bottomMargin=40
     )
+    styles = getSampleStyleSheet()
+    elements = []
 
-    pdf = canvas.Canvas(response, pagesize=A4)
-    width, height = A4
+    # --- Professional Color Palette ---
+    BRAND_INDIGO = colors.HexColor("#4F46E5")
+    TEXT_DARK = colors.HexColor("#1E293B")
+    TEXT_LIGHT = colors.HexColor("#64748B")
+    BG_SLATE = colors.HexColor("#F8FAFC")
+    BORDER_COLOR = colors.HexColor("#E2E8F0")
 
-    x_margin = 40
-    y = height - 50
+    # --- Custom Paragraph Styles ---
+    h1_style = ParagraphStyle('H1', parent=styles['Heading1'], fontSize=22, textColor=TEXT_DARK, spaceAfter=2)
+    h2_style = ParagraphStyle('H2', parent=styles['Heading2'], fontSize=14, textColor=BRAND_INDIGO, spaceBefore=15, spaceAfter=10, borderPadding=5)
+    body_style = ParagraphStyle('Body', parent=styles['Normal'], fontSize=10, textColor=TEXT_DARK, leading=14)
+    label_style = ParagraphStyle('Label', parent=styles['Normal'], fontSize=8, textColor=TEXT_LIGHT, fontName="Helvetica-Bold", leading=10)
+    quote_style = ParagraphStyle('Quote', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor("#475569"), fontName="Helvetica-Oblique", leftIndent=15, leading=14)
 
-    def draw_block(text, y_pos, bold=False):
-        pdf.setFont("Helvetica-Bold" if bold else "Helvetica", 10)
-        for line in wrap(text, 95):
-            pdf.drawString(x_margin, y_pos, line)
-            y_pos -= 14
-        return y_pos
+    # ================= 1. BRANDED HEADER =================
+    header_data = [
+        [Paragraph("MockInterview<font color='#4F46E5'>.ai</font>", h1_style), 
+         Paragraph(f"REPORT ID: #{session.id}<br/>DATE: {session.completed_at.strftime('%d %b %Y')}", label_style)]
+    ]
+    header_tab = Table(header_data, colWidths=[350, 150])
+    header_tab.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('ALIGN', (1,0), (1,0), 'RIGHT')]))
+    elements.append(header_tab)
+    elements.append(HRFlowable(width="100%", thickness=1, color=BRAND_INDIGO, spaceBefore=5, spaceAfter=20))
 
-    # ================= TITLE =================
-    pdf.setFont("Helvetica-Bold", 20)
-    pdf.drawString(x_margin, y, "AI Mock Interview Report")
-    y -= 35
+    # ================= 2. EXECUTIVE SUMMARY CARD =================
+    elements.append(Paragraph("EXECUTIVE SUMMARY", label_style))
+    summary_data = [
+        [Paragraph("CANDIDATE", label_style), Paragraph("TARGET ROLE", label_style), Paragraph("OVERALL SCORE", label_style)],
+        [Paragraph(session.user.get_full_name().upper(), body_style), 
+         Paragraph(session.role.upper(), body_style), 
+         Paragraph(f"<font size='14' color='#4F46E5'><b>{round(avg, 1)}</b></font><font size='10' color='#94A3B8'> / 10</font>", body_style)]
+    ]
+    summary_tab = Table(summary_data, colWidths=[166, 166, 166])
+    summary_tab.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), BG_SLATE),
+        ('BOX', (0,0), (-1,-1), 0.5, BORDER_COLOR),
+        ('PADDING', (0,0), (-1,-1), 15),
+    ]))
+    elements.append(summary_tab)
+    elements.append(Spacer(1, 25))
 
-    # ================= SESSION INFO =================
-    y = draw_block(f"Candidate: {session.user.username}", y)
-    y = draw_block(f"Role: {session.role}", y)
-    y = draw_block(f"Date: {session.started_at.strftime('%d %b %Y')}", y)
-    y = draw_block(f"Duration: {duration} minutes", y)
-    y = draw_block(f"Average Score: {round(avg, 2)}/10", y)
-    y -= 20
-
-    # ================= QUESTIONS =================
-    pdf.setFont("Helvetica-Bold", 14)
-    pdf.drawString(x_margin, y, "Question-wise Evaluation")
-    y -= 20
+    # ================= 3. PERFORMANCE LOG =================
+    elements.append(Paragraph("QUESTION-BY-QUESTION ANALYSIS", h2_style))
 
     for idx, a in enumerate(answers, start=1):
-        if y < 160:
-            pdf.showPage()
-            y = height - 50
+        q_container = []
+        
+        # Determine status color
+        score = a.score or 0
+        status_color = "#22C55E" if score >= 8 else "#F59E0B" if score >= 6 else "#EF4444"
+        status_text = "EXCEPTIONAL" if score >= 8 else "SATISFACTORY" if score >= 6 else "NEEDS FOCUS"
 
-        # Question
-        y = draw_block(f"Q{idx}. {a.question.text}", y, bold=True)
+        # Question Header Table
+        q_head_data = [[
+            Paragraph(f"<font color='#94A3B8'>QUESTION {idx}</font>", label_style),
+            Paragraph(f"<font color='{status_color}'>● {status_text}</font>", label_style)
+        ]]
+        q_head_tab = Table(q_head_data, colWidths=[400, 100])
+        q_container.append(q_head_tab)
+        
+        # Question Content
+        q_container.append(Paragraph(f"<b>{a.question.text}</b>", body_style))
+        q_container.append(Spacer(1, 10))
+        
+        # Answer Block
+        q_container.append(Paragraph("CANDIDATE RESPONSE", label_style))
+        q_container.append(Paragraph(f"\"{a.answer_text or 'No response recorded.'}\"", quote_style))
+        q_container.append(Spacer(1, 10))
+        
+        # AI Feedback Block
+        q_container.append(Paragraph("AI EVALUATION", label_style))
+        q_container.append(Paragraph(a.feedback or "Evaluation pending.", body_style))
 
-        # Answer
-        y = draw_block(
-            f"Your Answer: {a.answer_text or 'No answer provided'}", y
-        )
+        # Bulleted Tips
+        if a.improvement_tips:
+            q_container.append(Spacer(1, 5))
+            for tip in a.improvement_tips:
+                q_container.append(Paragraph(f"<font color='#4F46E5'>•</font> {tip}", ParagraphStyle('tip', parent=body_style, leftIndent=10, fontSize=9)))
 
-        # Score
-        y = draw_block(f"Score: {a.score}/10", y)
+        q_container.append(Spacer(1, 15))
+        q_container.append(HRFlowable(width="100%", thickness=0.5, color=BORDER_COLOR))
+        q_container.append(Spacer(1, 15))
+        
+        elements.append(KeepTogether(q_container))
 
-        # Feedback
-        y = draw_block(
-            f"AI Feedback: {a.feedback or 'N/A'}", y
-        )
+    # ================= 4. BEHAVIORAL INTELLIGENCE =================
+    v_feedback = getattr(session, "video_feedback_json", None)
+    if v_feedback:
+        elements.append(PageBreak())
+        elements.append(Paragraph("BEHAVIORAL INTELLIGENCE", h2_style))
+        
+        # Summary Paragraph
+        elements.append(Paragraph(v_feedback.get("summary", ""), body_style))
+        elements.append(Spacer(1, 15))
 
-        # ✅ Improvement Tips (IMPORTANT PART)
-        tips = getattr(a, "improvement_tips", None)
-        if tips:
-            y = draw_block("Improvement Tips:", y, bold=True)
+        # Strengths/Improvements Table
+        b_data = [
+            [Paragraph("CORE STRENGTHS", label_style), Paragraph("IMPROVEMENT AREAS", label_style)],
+            [
+                Paragraph("<br/>".join([f"<b>+</b> {s}" for s in v_feedback.get("strengths", [])]), body_style),
+                Paragraph("<br/>".join([f"<b>-</b> {i}" for i in v_feedback.get("improvements", [])]), body_style)
+            ]
+        ]
+        b_tab = Table(b_data, colWidths=[250, 250])
+        b_tab.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('BACKGROUND', (0,0), (0,1), colors.HexColor("#F0FDF4")), # Light Green
+            ('BACKGROUND', (1,0), (1,1), colors.HexColor("#FFF7ED")), # Light Orange
+            ('PADDING', (0,0), (-1,-1), 12),
+            ('GRID', (0,0), (-1,-1), 0.5, BORDER_COLOR)
+        ]))
+        elements.append(b_tab)
 
-            if isinstance(tips, (list, tuple)):
-                for tip in tips:
-                    y = draw_block(f"- {tip}", y)
-            else:
-                y = draw_block(f"- {tips}", y)
-
-        y -= 12
-
-    # ================= OVERALL SUGGESTIONS =================
-    if suggestions:
-        if y < 220:
-            pdf.showPage()
-            y = height - 50
-
-        pdf.setFont("Helvetica-Bold", 14)
-        pdf.drawString(x_margin, y, "Performance Insights")
-        y -= 20
-
-        y = draw_block("Strengths:", y, bold=True)
-        for s in suggestions.get("strengths", []):
-            y = draw_block(f"- {s}", y)
-
-        y -= 10
-        y = draw_block("Improvements:", y, bold=True)
-        for i in suggestions.get("improvements", []):
-            y = draw_block(f"- {i}", y)
-
-        y -= 10
-        y = draw_block("Overall Tip:", y, bold=True)
-        y = draw_block(suggestions.get("overall_tip", ""), y)
-
-        y -= 10
-        y = draw_block("Recommended Resources:", y, bold=True)
-        for r in suggestions.get("resources", []):
-            y = draw_block(f"- {r}", y)
-
-    pdf.showPage()
-    pdf.save()
+    # Build PDF
+    doc.build(elements)
+    response.write(buffer.getvalue())
+    buffer.close()
     return response
+
+
+@require_POST
+@login_required
+def upload_frame(request):
+    frame = request.FILES.get("frame")
+    session_id = request.POST.get("session_id")
+
+    if not frame or not session_id:
+        return JsonResponse({"status": "error"}, status=400)
+
+    image_bytes = frame.read()
+
+    face_count = count_faces(image_bytes)
+    behavior = analyze_eye_contact_and_head(image_bytes)
+
+    stats = SESSION_VIDEO_STATS[session_id]
+    stats["total_frames"] += 1
+
+    if face_count > 0:
+        stats["face_present_frames"] += 1
+
+    if face_count > 1:
+        stats["multiple_faces_frames"] += 1
+
+    if behavior["eye_contact"]:
+        stats["eye_contact_frames"] += 1
+
+    if behavior["head_movement"]:
+        stats["head_movement_frames"] += 1
+
+    print(
+        f"[SESSION {session_id}] "
+        f"Face:{face_count} "
+        f"Eye:{behavior['eye_contact']} "
+        f"HeadMove:{behavior['head_movement']}"
+    )
+    # ✅ THIS LINE WAS MISSING
+    return JsonResponse({
+        "status": "ok",
+        "faces": face_count,
+        "eye_contact": behavior["eye_contact"],
+        "head_movement": behavior["head_movement"]
+    })
+
+
+
+
+SESSION_VIDEO_STATS = defaultdict(lambda: {
+    "total_frames": 0,
+    "face_present_frames": 0,
+    "multiple_faces_frames": 0,
+    "eye_contact_frames": 0,
+    "head_movement_frames": 0
+})

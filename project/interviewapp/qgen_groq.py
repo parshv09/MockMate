@@ -86,35 +86,19 @@ def _build_prompt(role: str, n: int, difficulty: int = 2, math_needed: int = 0) 
         math_clause = f"- ZERO items of the {n} items should be of type \"math\".\n"
 
     return f"""
-You are a careful interview question generator.
+Generate EXACTLY {n} interview questions for a {role} interview.
 
-TASK:
-Generate EXACTLY {n} unique interview questions from "{role}" interviewer commonly asks to candidate and difficulty {difficulty}.
-Return ONLY a JSON array. Each entry MUST be an object with keys:
-  - "text": string - the question text (≤ 300 chars). For math questions include numeric data and a clear ask.
-  - "keywords": string - comma-separated keywords.
-  - "difficulty": integer 1-5.
-  - "type": string - either "math" or "reasoning".
+Difficulty: {difficulty}
 
-MIX RULE:
-{math_clause}
-- The rest of the items must be of type "reasoning".
-- Ensure variety: do not repeat same template or numeric values.
-- If you cannot meet constraints, return an empty array [].
+Rules:
+- {math_clause}
+- generate simple questions.
+- generate the the random questions every time not repetation allowed
+- generate more theortical questions, dont tell to develop something  
+- ask the questions which will be answerable within 5 to 6 minutes
+- Each item must include: text, keywords, difficulty, type
+- Return ONLY a valid JSON array.
 
-FORMAT RULES:
-- RETURN ONLY the JSON array and NOTHING ELSE (no commentary, no markdown).
-- Ensure valid JSON (double quotes, no trailing commas).
-
-Examples:
-[
-  {{"text":"A machine produces 120 parts in 8 hours. At the same rate how many parts in 5 hours?","keywords":"rate,proportion","difficulty":2,"type":"math"}},
-  {{"text":"Describe a time you handled conflicting priorities and how you decided.","keywords":"prioritization,tradeoffs","difficulty":3,"type":"reasoning"}}
-]
-
-CONSTRAINTS:
-- Avoid PII or offensive content.
-- Keep questions clear and answerable within 1-5 minutes.
 """
 
 def _call_groq_chat(prompt: str, model: Optional[str] = None, temperature: float = 0.15) -> str:

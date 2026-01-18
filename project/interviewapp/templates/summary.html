@@ -63,12 +63,91 @@
                 </svg>
                 <div class="absolute inset-0 flex flex-col items-center justify-center">
                     <span class="text-5xl font-black text-slate-900 leading-none">{{ avg|default:0|floatformat:1 }}</span>
-                    <span class="text-xs font-bold text-slate-400 mt-2">OUT OF 10</span>
+                    <span class="text-xs font-bold text-slate-400 mt-2">OUT OF 100</span>
                 </div>
             </div>
         </div>
     </div>
+{% if video_ai_feedback %}
+<div class="mb-12 animate-slide-up" style="animation-delay: 0.2s;">
+    <div class="flex items-center space-x-4 mb-8">
+        <div class="w-1.5 h-8 bg-indigo-600 rounded-full"></div>
+        <h2 class="text-2xl font-black text-slate-900 uppercase tracking-tight">Behavioral Intelligence Analysis</h2>
+    </div>
 
+    <div class="glass-panel rounded-[3rem] border border-white/70 shadow-2xl overflow-hidden bg-white/40">
+        <div class="p-8 md:p-12">
+            <div class="flex items-start gap-6 mb-10 pb-10 border-b border-slate-200/50">
+                <div class="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-xs font-black text-indigo-600 uppercase tracking-[0.2em] mb-2">Executive Summary</h3>
+                    <p class="text-xl text-slate-700 font-bold leading-relaxed">
+                        {{ video_ai_feedback.summary }}
+                    </p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="p-8 bg-green-500/5 rounded-[2.5rem] border border-green-500/10 relative group">
+                    <div class="flex items-center space-x-3 mb-6">
+                        <div class="w-8 h-8 bg-green-100 text-green-600 rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <h4 class="text-sm font-black text-green-700 uppercase tracking-widest">Key Strengths</h4>
+                    </div>
+                    <ul class="space-y-4">
+                        {% for s in video_ai_feedback.strengths %}
+                        <li class="flex items-start text-slate-700 font-medium text-sm">
+                            <span class="w-1.5 h-1.5 bg-green-500 rounded-full mt-2 mr-3 shrink-0"></span>
+                            {{ s }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="p-8 bg-amber-500/5 rounded-[2.5rem] border border-amber-500/10 relative group">
+                    <div class="flex items-center space-x-3 mb-6">
+                        <div class="w-8 h-8 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        </div>
+                        <h4 class="text-sm font-black text-amber-700 uppercase tracking-widest">Growth Opportunities</h4>
+                    </div>
+                    <ul class="space-y-4">
+                        {% for i in video_ai_feedback.improvements %}
+                        <li class="flex items-start text-slate-700 font-medium text-sm">
+                            <span class="w-1.5 h-1.5 bg-amber-500 rounded-full mt-2 mr-3 shrink-0"></span>
+                            {{ i }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mt-8 p-8 bg-slate-900 rounded-[2.5rem] text-white relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-primary-500/20 blur-3xl rounded-full group-hover:bg-primary-500/40 transition-all"></div>
+                <div class="relative z-10">
+                    <h4 class="text-xs font-black text-primary-400 uppercase tracking-[0.2em] mb-6 flex items-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        Behavioral Coaching Tips
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {% for tip in video_ai_feedback.tips %}
+                        <div class="px-5 py-4 bg-white/5 rounded-2xl border border-white/10 flex items-center text-sm font-bold text-slate-200">
+                            <span class="w-2 h-2 rounded-full bg-primary-500 mr-3 shrink-0"></span>
+                            {{ tip }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
     <div class="mb-12">
         <h2 class="text-2xl font-black text-slate-900 mb-8 flex items-center">
             <span class="w-2 h-8 bg-primary-600 rounded-full mr-4"></span>
@@ -212,7 +291,7 @@
         const el = document.querySelector('[data-avg]');
         if (!el) return;
         const avg = parseFloat(el.getAttribute('data-avg')) || 0;
-        const pct = (avg / 10) * 100;
+        const pct = (avg / 100) * 100;
         const circ = 276; // Circumference for r=44
         const offset = Math.round(circ - (pct / 100) * circ);
         const circle = document.getElementById('summary-progress-circle');
