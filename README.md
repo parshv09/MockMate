@@ -84,9 +84,9 @@ python -m spacy download en_core_web_sm
 ### 5️⃣ Install FFmpeg (Required for Audio Transcription)
 ##### Windows
 
--- Download from: https://ffmpeg.org
+- Download from: https://ffmpeg.org
 
--- Add ffmpeg/bin to System PATH
+- Add ffmpeg/bin to System PATH
 
 #### Verify:
 ```bash
@@ -171,7 +171,7 @@ mockmate/
 ### 👨‍💻 Author
 
 ***Parshv Athane***
-Aspiring Full-Stack Developer | AI & ML Enthusiast
+- Aspiring Full-Stack Developer | AI & ML Enthusiast
 
 ### ⭐ Support
 
