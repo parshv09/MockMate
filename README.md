@@ -77,10 +77,7 @@ venv\Scripts\activate      # Windows
 pip install -r requirements.txt
 ```
 
-### 4️⃣ Install spaCy Model
-```bash
-python -m spacy download en_core_web_sm
-```
+
 ### 5️⃣ Install FFmpeg (Required for Audio Transcription)
 ##### Windows
 
