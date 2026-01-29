@@ -81,7 +81,7 @@ pip install -r requirements.txt
 ### 5️⃣ Install FFmpeg (Required for Audio Transcription)
 ##### Windows
 
-- Download from: https://ffmpeg.org
+- Download from: https://www.gyan.dev/ffmpeg/builds/
 
 - Add ffmpeg/bin to System PATH
 
