@@ -74,10 +74,9 @@ def _is_math_question_textual(text: str) -> bool:
         return True
     return False
 
-def _build_prompt(role: str, n: int, difficulty: int = 2, math_needed: int = 0) -> str:
+def _build_prompt(role: str, job_role: str, n: int, difficulty: int = 2, math_needed: int = 0, previous_questions: list = None) -> str:
     """
-    Build a JSON-only prompt. If math_needed > 0 we require that many math items in this batch.
-    If math_needed == 0, request zero math items.
+    Build a JSON-only prompt tailored to the specified job_role and difficulty level.
     """
     math_clause = ""
     if math_needed > 0:
@@ -85,20 +84,73 @@ def _build_prompt(role: str, n: int, difficulty: int = 2, math_needed: int = 0) 
     else:
         math_clause = f"- ZERO items of the {n} items should be of type \"math\".\n"
 
-    return f"""
-Generate EXACTLY {n} interview questions for a {role} interview.
+    # Define difficulty details
+    diff_val = int(difficulty)
+    if diff_val <= 2:
+        diff_instruction = "The questions should be introductory, fundamental, and conceptual. Focus on basic definitions, syntax, simple operations, and core vocabulary suited for entry-level candidates or interns. Avoid complex architectural, design pattern, or optimization questions."
+    elif diff_val <= 4:
+        diff_instruction = "The questions should test practical development knowledge, intermediate concepts, problem-solving, and implementation details. Suit this for candidates with 2-4 years of experience. Ask about best practices, common libraries/frameworks, basic system design, and testing."
+    else:
+        diff_instruction = "The questions should be deep, complex, and highly technical. Focus on performance optimization, advanced architecture, concurrency, microservices, scaling challenges, low-level details, security, and trade-offs. Suit this for senior candidates with 5+ years of experience."
 
-Difficulty: {difficulty}
+    # Define role-specific guidelines to ensure high-quality and realistic questions
+    role_lower = role.lower()
+    role_instructions = ""
+    
+    if "human resources" in role_lower or "hr" == role_lower:
+        role_instructions = f"""
+- These must be HR interview questions asked BY AN HR INTERVIEWER TO THE CANDIDATE who is applying for the job of {job_role}.
+- Do NOT generate questions testing the candidate's ability to DO human resources work (e.g. no questions on how to hire, run payroll, or design company benefits).
+- Instead, generate classic behavioral and fit questions asked of a {job_role} candidate (e.g., questions about career goals, strengths/weaknesses, teamwork, handling conflict, motivation, and why they want to join the company).
+"""
+    elif "technical" in role_lower or "tech" in role_lower:
+        role_instructions = f"""
+- Generate actual technical questions commonly asked in interviews for a {job_role} position.
+- Focus on key technologies, programming concepts, architecture, syntax, tools, or domain-specific logic that a qualified {job_role} must know.
+"""
+    elif "behavioral" in role_lower or "beh" in role_lower:
+        role_instructions = f"""
+- Generate situational and behavioral questions asked of a candidate applying for the job of {job_role}.
+- Focus on real-world scenarios: handling project deadlines, working in teams, resolving conflicts, learning from failures, or solving problems under pressure.
+"""
+    else:
+        # Fallback or Aptitude
+        role_instructions = f"""
+- Generate questions appropriate for a candidate interviewing for a {job_role} position.
+"""
+
+    # Avoid previously asked questions
+    avoid_clause = ""
+    if previous_questions:
+        avoid_clause = "\n- Do NOT generate any questions similar to the following previously asked questions:\n"
+        for pq in previous_questions:
+            avoid_clause += f"  * {pq}\n"
+
+    return f"""
+You are an expert interviewer. Generate EXACTLY {n} questions for a {role} interview round for a candidate applying for the job role: "{job_role}".
+
+Difficulty Level / Target Depth:
+{diff_instruction}
 
 Rules:
+{role_instructions}
 - {math_clause}
-- generate simple questions.
-- generate the the random questions every time not repetation allowed
-- generate more theortical questions, dont tell to develop something  
-- ask the questions which will be answerable within 5 to 6 minutes
-- Each item must include: text, keywords, difficulty, type
-- Return ONLY a valid JSON array.
+{avoid_clause}
+- Ask realistic, high-quality questions that are commonly asked in real-world interviews for this role.
+- Keep questions clear, focused, and answerable within 5 minutes.
+- Do NOT ask the candidate to write or develop long sections of code; ask conceptual or code-analysis questions instead.
+- Generate unique, varied questions each time.
+- Each item must include: text, keywords (comma-separated target terms candidate should mention), difficulty, type (either "math" or "reasoning").
 
+Return ONLY a valid JSON array of objects in this exact format:
+[
+  {{
+    "text": "The question text",
+    "keywords": "keyword1,keyword2,keyword3",
+    "difficulty": {difficulty},
+    "type": "reasoning"
+  }}
+]
 """
 
 def _call_groq_chat(prompt: str, model: Optional[str] = None, temperature: float = 0.15) -> str:
@@ -237,7 +289,7 @@ def _is_math_question(qobj: dict) -> bool:
         return True
     return _is_math_question_textual(qobj.get("text", ""))
 
-def enforce_role_allowed_types(role_key: str, collected: list, n: int, difficulty: int = 3, model: Optional[str] = None) -> list:
+def enforce_role_allowed_types(role_key: str, job_role: str, collected: list, n: int, difficulty: int = 3, previous_questions: list = None, model: Optional[str] = None) -> list:
     """
     Remove disallowed types for the role and try to replace them by targeted LLM calls.
     Returns a list (<= n) of allowed items.
@@ -259,9 +311,10 @@ def enforce_role_allowed_types(role_key: str, collected: list, n: int, difficult
     while removed_slots > 0 and attempts < max_attempts:
         attempts += 1
         # request exactly removed_slots items with math_needed=0 (i.e., only reasoning)
-        prompt = _build_prompt(role=role_key.capitalize(), n=removed_slots, difficulty=difficulty, math_needed=0)
+        prompt = _build_prompt(role=role_key.capitalize(), job_role=job_role, n=removed_slots, difficulty=difficulty, math_needed=0, previous_questions=previous_questions)
         try:
-            out = _call_groq_chat(prompt, model=model)
+            # Use temperature=0.7 for replacements as well to ensure diversity
+            out = _call_groq_chat(prompt, model=model, temperature=0.7)
             parsed = _extract_json_array_from_text(out)
         except Exception as e:
             logger.exception("Replacement call failed: %s", e)
@@ -282,9 +335,10 @@ def enforce_role_allowed_types(role_key: str, collected: list, n: int, difficult
 
     return kept[:n]
 
-def generate_questions_groq(role: str, n: int = 5, difficulty: int = 3, model: Optional[str] = None) -> List[dict]:
+def generate_questions_groq(role: str, job_role: str, n: int = 5, difficulty: int = 3, previous_questions: list = None, model: Optional[str] = None) -> List[dict]:
     """
-    Generate up to n validated question dicts with role-aware math/reasoning constraints.
+    Generate up to n validated question dicts with role-aware math/reasoning constraints, 
+    avoiding previous questions and adhering to the difficulty level.
     """
     role_key = _normalize_role_key(role)
     math_ratio = ROLE_MATH_RATIO.get(role_key, ROLE_MATH_RATIO["default"])
@@ -304,10 +358,11 @@ def generate_questions_groq(role: str, n: int = 5, difficulty: int = 3, model: O
         math_for_this_call = min(remaining, math_needed_remaining)
 
         # build prompt asking for remaining questions and math quota for this call
-        prompt = _build_prompt(role=role.capitalize(), n=remaining, difficulty=difficulty, math_needed=math_for_this_call)
+        prompt = _build_prompt(role=role.capitalize(), job_role=job_role, n=remaining, difficulty=difficulty, math_needed=math_for_this_call, previous_questions=previous_questions)
 
         try:
-            out = _call_groq_chat(prompt, model=model, temperature=0.2)
+            # Set temperature to 0.7 to guarantee high variety and avoid repetitions
+            out = _call_groq_chat(prompt, model=model, temperature=0.7)
         except Exception as e:
             logger.exception("Groq call failed: %s", e)
             break
@@ -349,7 +404,7 @@ def generate_questions_groq(role: str, n: int = 5, difficulty: int = 3, model: O
 
     # Final enforcement: remove disallowed types and attempt targeted replacements if needed
     final = collected[:n]
-    final = enforce_role_allowed_types(role_key, final, n, difficulty=difficulty, model=model)
+    final = enforce_role_allowed_types(role_key, job_role, final, n, difficulty=difficulty, previous_questions=previous_questions, model=model)
 
     # If still fewer than n, fill with safe stubs
     if len(final) < n:

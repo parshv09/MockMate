@@ -235,10 +235,27 @@ def start_session(request):
         if form.is_valid():
             raw_role = form.cleaned_data['role']               # DB key (e.g. 'tech')
             role_for_prompt = ROLE_MAP.get(raw_role.lower(), raw_role.capitalize())
+            job_role = form.cleaned_data['job_role']
+            difficulty = int(form.cleaned_data['difficulty'])
             n = form.cleaned_data['n_questions']
 
             # create the session
-            s = InterviewSession.objects.create(user=request.user, total_questions=n, role=raw_role, total_score=None, current_index=0)
+            s = InterviewSession.objects.create(
+                user=request.user, 
+                total_questions=n, 
+                role=raw_role, 
+                job_role=job_role, 
+                difficulty=difficulty,
+                total_score=None, 
+                current_index=0
+            )
+
+            # Fetch up to 15 unique question texts previously asked to the user in this round type
+            from .models import SessionQuestion
+            prev_questions = list(SessionQuestion.objects.filter(
+                session__user=request.user,
+                session__role=raw_role
+            ).order_by('-id').values_list('question__text', flat=True).distinct()[:15])
 
             created = 0
             attempts = 0
@@ -247,7 +264,14 @@ def start_session(request):
 
             # 1) Try LLM generation first
             try:
-                llm_questions = generate_questions_groq(role=role_for_prompt, n=n, difficulty=2, model="llama-3.1-8b-instant")
+                llm_questions = generate_questions_groq(
+                    role=role_for_prompt, 
+                    job_role=job_role, 
+                    n=n, 
+                    difficulty=difficulty, 
+                    previous_questions=prev_questions,
+                    model="llama-3.1-8b-instant"
+                )
             except Exception as e:
                 logger.exception("Groq generation error: %s", e)
                 messages.warning(request, "AI question generation temporarily failed — using fallback questions.")
@@ -522,8 +546,16 @@ def session_summary(request, session_id):
     scores = [a.score for a in answers if a.score is not None]
     avg = (sum(scores) / len(scores)) if scores else None
     session.total_score = avg
-    # Save total_score but avoid saving suggestions here; we may persist later
     session.save(update_fields=['total_score'])
+
+    # Calculate Breakdown Metrics (excluding skipped/empty answers)
+    total_q = answers.count()
+    attempted_answers = answers.exclude(answer_text__in=["[Skipped]", "", "[Voice answer could not be transcribed]"])
+    attempted_count = attempted_answers.count()
+    completion_rate = int((attempted_count / total_q) * 100) if total_q else 0
+    
+    attempted_scores = [a.score for a in attempted_answers if a.score is not None]
+    content_quality_score = (sum(attempted_scores) / len(attempted_scores)) if attempted_scores else 0
 
     # duration (minutes) — uses session.completed_at if present
     duration = 0
@@ -617,6 +649,8 @@ def session_summary(request, session_id):
         'session': session,
         'answers': answers,
         'avg': round(avg, 2) if avg is not None else None,
+        'content_quality_score': content_quality_score,
+        'completion_rate': completion_rate,
         'duration': duration,
         'strengths': suggestions.get('strengths', strengths),
         'improvements': suggestions.get('improvements', improvements),
@@ -624,7 +658,6 @@ def session_summary(request, session_id):
         'resources': suggestions.get('resources', []),
         "video_summary": video_summary,
         "video_ai_feedback": video_ai_feedback
-
     })
 
 class SimpleStartForm(forms.Form):
@@ -732,6 +765,15 @@ def download_report(request, session_id):
     scores = [a.score for a in answers if a.score is not None]
     avg = (sum(scores) / len(scores)) if scores else 0
     duration = int((session.completed_at - session.started_at).total_seconds() / 60) if session.completed_at else 0
+
+    # Calculate Breakdown Metrics (excluding skipped/empty answers)
+    total_q = answers.count()
+    attempted_answers = answers.exclude(answer_text__in=["[Skipped]", "", "[Voice answer could not be transcribed]"])
+    attempted_count = attempted_answers.count()
+    completion_rate = int((attempted_count / total_q) * 100) if total_q else 0
+    
+    attempted_scores = [a.score for a in attempted_answers if a.score is not None]
+    content_quality_score = (sum(attempted_scores) / len(attempted_scores)) if attempted_scores else 0
     
     # PDF Setup
     response = HttpResponse(content_type="application/pdf")
@@ -773,12 +815,22 @@ def download_report(request, session_id):
     # ================= 2. EXECUTIVE SUMMARY CARD =================
     elements.append(Paragraph("EXECUTIVE SUMMARY", label_style))
     summary_data = [
-        [Paragraph("CANDIDATE", label_style), Paragraph("TARGET ROLE", label_style), Paragraph("OVERALL SCORE", label_style)],
-        [Paragraph(session.user.get_full_name().upper(), body_style), 
-         Paragraph(session.role.upper(), body_style), 
-         Paragraph(f"<font size='14' color='#4F46E5'><b>{round(avg, 1)}</b></font><font size='10' color='#94A3B8'> / 10</font>", body_style)]
+        [
+            Paragraph("CANDIDATE", label_style), 
+            Paragraph("TARGET ROLE", label_style), 
+            Paragraph("ANSWER QUALITY", label_style),
+            Paragraph("COMPLETION RATE", label_style),
+            Paragraph("OVERALL SCORE", label_style)
+        ],
+        [
+            Paragraph(session.user.get_full_name().upper(), body_style), 
+            Paragraph(session.role.upper(), body_style), 
+            Paragraph(f"<b>{round(content_quality_score, 1)}</b>/100", body_style),
+            Paragraph(f"<b>{completion_rate}%</b>", body_style),
+            Paragraph(f"<font size='12' color='#4F46E5'><b>{round(avg, 1)}</b></font><font size='8' color='#94A3B8'> / 100</font>", body_style)
+        ]
     ]
-    summary_tab = Table(summary_data, colWidths=[166, 166, 166])
+    summary_tab = Table(summary_data, colWidths=[100, 105, 100, 95, 95])
     summary_tab.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), BG_SLATE),
         ('BOX', (0,0), (-1,-1), 0.5, BORDER_COLOR),
@@ -795,8 +847,8 @@ def download_report(request, session_id):
         
         # Determine status color
         score = a.score or 0
-        status_color = "#22C55E" if score >= 8 else "#F59E0B" if score >= 6 else "#EF4444"
-        status_text = "EXCEPTIONAL" if score >= 8 else "SATISFACTORY" if score >= 6 else "NEEDS FOCUS"
+        status_color = "#22C55E" if score >= 80 else "#F59E0B" if score >= 60 else "#EF4444"
+        status_text = "EXCEPTIONAL" if score >= 80 else "SATISFACTORY" if score >= 60 else "NEEDS FOCUS"
 
         # Question Header Table
         q_head_data = [[

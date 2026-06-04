@@ -36,6 +36,8 @@ class GeneratedQuestion(models.Model):
 class InterviewSession(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     role = models.CharField(max_length=50, default='general')
+    job_role = models.CharField(max_length=100, default='Software Engineer')
+    difficulty = models.IntegerField(default=3)
     started_at = models.DateTimeField(auto_now_add=True)
     state = models.CharField(max_length=20, default='in_progress')
     current_index = models.IntegerField(default=0)
