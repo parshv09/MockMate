@@ -9,7 +9,8 @@ urlpatterns = [
     path('login/', views.user_login, name='login'),
     path('register/', views.register, name='register'),
     path('logout/', views.user_logout, name='logout'),
-    path('start/', views.start_session, name='start_session'),
+    path("start/", views.start_session, name="start_session"),
+    path("start/resume-jd/", views.start_resume_jd_session, name="start_resume_jd_session"),
     path('session/<int:session_id>/next/', views.next_question, name='next_question'),
     path('session/<int:session_id>/submit/', views.submit_answer, name='submit_answer'),
     path('session/<int:session_id>/skip/', views.skip_question, name='skip_question'),  # NEW
@@ -19,6 +20,7 @@ urlpatterns = [
     path("session/<int:session_id>/delete/", views.delete_session, name="delete_session"),
     path("session/<int:session_id>/download/",views.download_report,name="download_report"),
     path("upload-frame/", views.upload_frame, name="upload_frame"),
-
-
+    path("roadmap/", views.roadmap_view, name="roadmap"),
+    path("roadmap/practice/", views.start_phase_practice, name="start_phase_practice"),
+    path("roadmap/api/generate/", views.generate_roadmap_api, name="generate_roadmap_api"),
 ]

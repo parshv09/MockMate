@@ -7,13 +7,13 @@ from django.http import HttpResponseForbidden
 from django.db import transaction
 from django.utils import timezone
 from django import forms
-from .models import GeneratedQuestion, InterviewSession, Answer,UserProfile
+from .models import GeneratedQuestion, InterviewSession, Answer, UserProfile, SessionQuestion
 from .forms import StartSessionForm, AnswerForm
-from .nlp_utils import analyze_transcript
+from .nlp_utils import analyze_transcript, generate_expected_answer
 import hashlib
 import logging
 from django.contrib import messages
-from .qgen_groq import generate_questions_groq, signature_of_text  # qgen_groq from earlier
+from .qgen_groq import generate_questions_groq, signature_of_text, generate_session_suggestions, generate_ai_roadmap, generate_resume_jd_questions_groq
 from .views_helpers import generate_question_stub  # if you keep stub in a helper; otherwise use local stub
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -70,6 +70,9 @@ def register(request):
     """
     Handle user registration with proper error handling
     """
+    if request.user.is_authenticated:
+        return redirect('interviewapp:dashboard')
+
     if request.method == 'POST':
         # Get form data
         form_data = {
@@ -172,6 +175,9 @@ def register(request):
     return render(request, 'register.html')
 
 def user_login(request):
+    if request.user.is_authenticated:
+        return redirect('interviewapp:dashboard')
+
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
@@ -355,9 +361,130 @@ def start_session(request):
             # 6) Redirect to the first question (next_question reads the next unprocessed answer)
             return redirect('interviewapp:next_question', session_id=s.id)
     else:
-        form = StartSessionForm()
+        role_param = request.GET.get('role', '').strip()
+        initial_data = {}
+        if role_param:
+            initial_data['job_role'] = role_param.replace('-', ' ').title()
+            r_lower = role_param.lower()
+            if any(k in r_lower for k in ['tech', 'full-stack', 'backend', 'frontend', 'devops', 'data', 'ai', 'cyber']):
+                initial_data['role'] = 'tech'
+            elif any(k in r_lower for k in ['hr', 'manager', 'product', 'people']):
+                initial_data['role'] = 'hr'
+        form = StartSessionForm(initial=initial_data)
 
     return render(request, 'start.html', {'form': form})
+
+
+@login_required
+def start_phase_practice(request):
+    """
+    Instantly create and launch an interview session for a specific roadmap phase.
+    """
+    raw_role_param = request.GET.get('role', 'Full-Stack Developer').strip()
+    phase_num = request.GET.get('phase', '1').strip()
+    phase_title = request.GET.get('phase_title', '').strip()
+    
+    job_role = f"{raw_role_param.replace('-', ' ').title()}"
+    if phase_title:
+        job_role += f" (Phase {phase_num}: {phase_title})"
+    
+    r_lower = raw_role_param.lower()
+    raw_role = 'tech'
+    if any(k in r_lower for k in ['hr', 'manager', 'people']):
+        raw_role = 'hr'
+    elif any(k in r_lower for k in ['apt', 'logic', 'math']):
+        raw_role = 'apt'
+        
+    role_for_prompt = ROLE_MAP.get(raw_role, "Technical")
+    difficulty = 3
+    n = 5
+
+    s = InterviewSession.objects.create(
+        user=request.user,
+        total_questions=n,
+        role=raw_role,
+        job_role=job_role,
+        difficulty=difficulty,
+        total_score=None,
+        current_index=0
+    )
+
+    prev_questions = list(SessionQuestion.objects.filter(
+        session__user=request.user,
+        session__role=raw_role
+    ).order_by('-id').values_list('question__text', flat=True).distinct()[:15])
+
+    try:
+        llm_questions = generate_questions_groq(
+            role=role_for_prompt,
+            job_role=job_role,
+            n=n,
+            difficulty=difficulty,
+            previous_questions=prev_questions,
+            model="llama-3.1-8b-instant"
+        )
+    except Exception as e:
+        logger.exception("Groq phase generation error: %s", e)
+        llm_questions = []
+
+    created_question_ids = []
+    created = 0
+
+    for qobj in llm_questions:
+        if created >= n:
+            break
+        text = qobj.get("text", "").strip()
+        if not text:
+            continue
+        sig = signature_of_text(text)
+        qrow, _ = GeneratedQuestion.objects.get_or_create(
+            signature=sig,
+            defaults={
+                "role": raw_role,
+                "difficulty": qobj.get("difficulty", 3),
+                "text": text,
+                "keywords": qobj.get("keywords", ""),
+                "source": "llm"
+            }
+        )
+        created_question_ids.append(qrow.id)
+        created += 1
+
+    attempts = 0
+    while created < n and attempts < 20:
+        attempts += 1
+        payload = generate_question_stub(raw_role, difficulty=3)
+        text = payload.get('text', '').strip()
+        if not text:
+            continue
+        sig = signature_of_text(text)
+        qrow, _ = GeneratedQuestion.objects.get_or_create(
+            signature=sig,
+            defaults={
+                "role": raw_role,
+                "difficulty": 3,
+                "text": text,
+                "keywords": payload.get("keywords", ""),
+                "source": "template"
+            }
+        )
+        if qrow.id not in created_question_ids:
+            created_question_ids.append(qrow.id)
+            created += 1
+
+    s.answers.all().delete()
+    idx = 1
+    for qid in created_question_ids:
+        qobj = GeneratedQuestion.objects.get(id=qid)
+        Answer.objects.create(session=s, question=qobj, index=idx)
+        idx += 1
+
+    s.total_questions = len(created_question_ids)
+    s.current_index = 1
+    s.save(update_fields=["total_questions", "current_index"])
+
+    messages.success(request, f"Started Practice Session for {job_role}!")
+    return redirect('interviewapp:next_question', session_id=s.id)
 
 
 
@@ -422,7 +549,7 @@ def submit_answer(request, session_id):
         ans.improvement_tips = result.get('improvement_tips', [])
         ans.processed = True
 
-        # ✅ Final save
+        # ✅ Final save once
         ans.save(update_fields=[
             'answer_text',
             'score',
@@ -430,8 +557,6 @@ def submit_answer(request, session_id):
             'improvement_tips',
             'processed'
         ])
-        ans.processed = True
-        ans.save()
 
         # 🔥 AUTO END SESSION
 # Decide next step based on remaining unprocessed answers
@@ -480,21 +605,35 @@ def skip_question(request, session_id):
     if session.user != request.user:
         return HttpResponseForbidden()
     
-    # Mark current question as skipped (or create empty answer)
-    used_q_ids = session.answers.values_list('question_id', flat=True)
-    q = GeneratedQuestion.objects.filter(role=session.role).exclude(id__in=used_q_ids).first()
+    # Mark current unprocessed answer placeholder as skipped
+    current_ans = session.answers.filter(processed=False).order_by('index').first()
     
-    if q:
+    if current_ans:
         with transaction.atomic():
-            session.current_index += 1
-            session.save()
-            Answer.objects.create(
-                session=session, 
-                question=q, 
-                index=session.current_index,
-                answer_text="[Skipped]",
-                score=0
-            )
+            current_ans.answer_text = "[Skipped]"
+            current_ans.score = 0
+            current_ans.feedback = "Question was skipped."
+            current_ans.processed = True
+            current_ans.save()
+
+            remaining = session.answers.filter(processed=False).exists()
+            if not remaining:
+                video_stats = SESSION_VIDEO_STATS.get(str(session.id))
+                if video_stats:
+                    session.video_stats_json = video_stats
+                    video_summary = compute_video_confidence(video_stats)
+                    session.video_feedback_json = generate_video_behavior_feedback(
+                        role=session.role,
+                        confidence_score=video_summary["confidence_score"],
+                        presence_pct=video_summary["presence_pct"],
+                        eye_contact_pct=video_summary["eye_contact_pct"],
+                        movement_pct=video_summary["movement_pct"]
+                    )
+                session.completed = True
+                session.completed_at = timezone.now()
+                session.save()
+                messages.success(request, "Interview completed successfully!")
+                return redirect("interviewapp:session_summary", session_id=session.id)
     
     return redirect('interviewapp:next_question', session_id=session.id)
 
@@ -547,6 +686,19 @@ def session_summary(request, session_id):
     avg = (sum(scores) / len(scores)) if scores else None
     session.total_score = avg
     session.save(update_fields=['total_score'])
+
+    # Populate expected answers for unanswered/skipped questions
+    for a in answers:
+        is_unanswered = (not a.answer_text) or (a.answer_text.strip() in ["", "[Skipped]", "[Voice answer could not be transcribed]", "No answer provided"]) or (a.score == 0)
+        a.is_unanswered = is_unanswered
+        if a.question and not a.expected_answer:
+            try:
+                keywords_list = [k.strip() for k in a.question.keywords.split(',')] if a.question.keywords else []
+                exp = generate_expected_answer(a.question.text, session.role, keywords_list)
+                a.expected_answer = exp
+                a.save(update_fields=['expected_answer'])
+            except Exception:
+                pass
 
     # Calculate Breakdown Metrics (excluding skipped/empty answers)
     total_q = answers.count()
@@ -764,7 +916,7 @@ def download_report(request, session_id):
     answers = session.answers.select_related('question').all().order_by('index')
     scores = [a.score for a in answers if a.score is not None]
     avg = (sum(scores) / len(scores)) if scores else 0
-    duration = int((session.completed_at - session.started_at).total_seconds() / 60) if session.completed_at else 0
+    duration = int((session.completed_at - session.started_at).total_seconds() / 60) if (session.completed_at and session.started_at) else 0
 
     # Calculate Breakdown Metrics (excluding skipped/empty answers)
     total_q = answers.count()
@@ -866,6 +1018,12 @@ def download_report(request, session_id):
         q_container.append(Paragraph("CANDIDATE RESPONSE", label_style))
         q_container.append(Paragraph(f"\"{a.answer_text or 'No response recorded.'}\"", quote_style))
         q_container.append(Spacer(1, 10))
+
+        # Expected Answer Block (Model Solution)
+        if a.expected_answer:
+            q_container.append(Paragraph("EXPECTED ANSWER (MODEL SOLUTION)", label_style))
+            q_container.append(Paragraph(a.expected_answer, ParagraphStyle('Expected', parent=body_style, leftIndent=10, textColor=colors.HexColor("#B45309"))))
+            q_container.append(Spacer(1, 10))
         
         # AI Feedback Block
         q_container.append(Paragraph("AI EVALUATION", label_style))
@@ -971,3 +1129,186 @@ SESSION_VIDEO_STATS = defaultdict(lambda: {
     "eye_contact_frames": 0,
     "head_movement_frames": 0
 })
+
+
+def roadmap_view(request):
+    """
+    Interactive Career & Skill Roadmap Generator view.
+    """
+    selected_role = request.GET.get('role', 'full-stack').strip()
+    experience_level = request.GET.get('level', 'Intermediate').strip()
+    
+    roadmap_data = generate_ai_roadmap(selected_role, experience_level)
+    
+    popular_roles = [
+        {"id": "full-stack", "title": "Full-Stack Developer", "category": "Development", "icon": "code"},
+        {"id": "data-science", "title": "Data Scientist", "category": "Data & AI", "icon": "chart"},
+        {"id": "frontend", "title": "Frontend Engineer", "category": "Development", "icon": "desktop"},
+        {"id": "backend", "title": "Backend Engineer", "category": "Development", "icon": "server"},
+        {"id": "devops", "title": "DevOps Specialist", "category": "Infrastructure", "icon": "cloud"},
+        {"id": "product-manager", "title": "Product Manager", "category": "Product", "icon": "briefcase"},
+        {"id": "ai-engineer", "title": "AI/ML Engineer", "category": "Data & AI", "icon": "sparkles"},
+        {"id": "cybersecurity", "title": "Cyber Security Analyst", "category": "Security", "icon": "shield"}
+    ]
+    
+    return render(request, 'roadmap.html', {
+        'roadmap': roadmap_data,
+        'selected_role': selected_role,
+        'experience_level': experience_level,
+        'popular_roles': popular_roles
+    })
+
+
+def generate_roadmap_api(request):
+    """
+    JSON API endpoint for generating custom AI roadmaps.
+    """
+    role = request.GET.get('role', 'Full-Stack Developer').strip()
+    level = request.GET.get('level', 'Intermediate').strip()
+    
+    data = generate_ai_roadmap(role, level)
+    return JsonResponse(data)
+
+
+def extract_text_from_resume_file(file_obj) -> str:
+    """
+    Extract raw text from uploaded PDF, TXT, or MD resume file.
+    """
+    if not file_obj:
+        return ""
+    
+    filename = file_obj.name.lower()
+    text = ""
+    
+    if filename.endswith(".pdf"):
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(file_obj)
+            pages_text = []
+            for page in reader.pages:
+                t = page.extract_text()
+                if t:
+                    pages_text.append(t)
+            text = "\n".join(pages_text)
+        except Exception as e:
+            logging.getLogger(__name__).exception("Failed to parse PDF resume with pypdf: %s", e)
+            file_obj.seek(0)
+            text = file_obj.read().decode('utf-8', errors='ignore')
+    else:
+        try:
+            text = file_obj.read().decode('utf-8', errors='ignore')
+        except Exception:
+            text = ""
+
+    return text.strip()
+
+
+@login_required
+def start_resume_jd_session(request):
+    """
+    Create and launch a tailored Mock Interview session based on uploaded Resume & Job Description.
+    """
+    if request.method != 'POST':
+        return redirect('interviewapp:start_session')
+
+    resume_file = request.FILES.get('resume_file')
+    pasted_resume = request.POST.get('resume_text', '').strip()
+    job_description = request.POST.get('job_description', '').strip()
+    difficulty = int(request.POST.get('difficulty', '3'))
+    n = int(request.POST.get('n_questions', '5'))
+
+    # Extract resume text
+    extracted_resume_text = extract_text_from_resume_file(resume_file) if resume_file else ""
+    full_resume_text = (extracted_resume_text + "\n" + pasted_resume).strip()
+
+    if not full_resume_text and not job_description:
+        messages.error(request, "Please upload a resume file, paste your resume text, or provide a job description.")
+        return redirect('interviewapp:start_session')
+
+    job_role = "Resume & JD Specific Match"
+    if job_description:
+        lines = [l.strip() for l in job_description.splitlines() if l.strip()]
+        if lines:
+            job_role = f"Job Match: {lines[0][:45]}"
+
+    # Create interview session
+    s = InterviewSession.objects.create(
+        user=request.user,
+        total_questions=n,
+        role='tech',
+        job_role=job_role,
+        difficulty=difficulty,
+        total_score=None,
+        current_index=0
+    )
+
+    try:
+        llm_questions = generate_resume_jd_questions_groq(
+            resume_text=full_resume_text,
+            job_description=job_description,
+            n=n,
+            difficulty=difficulty
+        )
+    except Exception as e:
+        logger.exception("Resume/JD question generation error: %s", e)
+        llm_questions = []
+
+    created_question_ids = []
+    created = 0
+
+    for qobj in llm_questions:
+        if created >= n:
+            break
+        text = qobj.get("text", "").strip()
+        if not text:
+            continue
+        sig = signature_of_text(text)
+        qrow, _ = GeneratedQuestion.objects.get_or_create(
+            signature=sig,
+            defaults={
+                "role": "tech",
+                "difficulty": qobj.get("difficulty", difficulty),
+                "text": text,
+                "keywords": qobj.get("keywords", ""),
+                "source": "llm"
+            }
+        )
+        created_question_ids.append(qrow.id)
+        created += 1
+
+    attempts = 0
+    while created < n and attempts < 20:
+        attempts += 1
+        payload = generate_question_stub('tech', difficulty=difficulty)
+        text = payload.get('text', '').strip()
+        if not text:
+            continue
+        sig = signature_of_text(text)
+        qrow, _ = GeneratedQuestion.objects.get_or_create(
+            signature=sig,
+            defaults={
+                "role": "tech",
+                "difficulty": difficulty,
+                "text": text,
+                "keywords": payload.get("keywords", ""),
+                "source": "template"
+            }
+        )
+        if qrow.id not in created_question_ids:
+            created_question_ids.append(qrow.id)
+            created += 1
+
+    s.answers.all().delete()
+    idx = 1
+    for qid in created_question_ids:
+        qobj = GeneratedQuestion.objects.get(id=qid)
+        Answer.objects.create(session=s, question=qobj, index=idx)
+        idx += 1
+
+    s.total_questions = len(created_question_ids)
+    s.current_index = 1
+    s.save(update_fields=["total_questions", "current_index"])
+
+    messages.success(request, f"Launched Resume & Job Description Tailored Session!")
+    return redirect('interviewapp:next_question', session_id=s.id)
+

@@ -153,8 +153,19 @@ Return ONLY a valid JSON array of objects in this exact format:
 ]
 """
 
+def _get_groq_api_key() -> str:
+    key = os.getenv("GROQ_API_KEY", "")
+    if not key:
+        try:
+            from django.conf import settings
+            key = getattr(settings, "GROQ_API_KEY", "")
+        except Exception:
+            pass
+    return key or GROQ_API_KEY
+
 def _call_groq_chat(prompt: str, model: Optional[str] = None, temperature: float = 0.15) -> str:
-    if not GROQ_API_KEY:
+    api_key = _get_groq_api_key()
+    if not api_key:
         raise RuntimeError("GROQ_API_KEY not set")
     url = f"{GROQ_BASE}/chat/completions"
     body = {
@@ -167,7 +178,7 @@ def _call_groq_chat(prompt: str, model: Optional[str] = None, temperature: float
         "max_tokens": 1000,
         "top_p": 0.95,
     }
-    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
     last_exc = None
     for attempt in range(1, MAX_RETRIES + 1):
@@ -184,6 +195,9 @@ def _call_groq_chat(prompt: str, model: Optional[str] = None, temperature: float
                     f.write(text)
             except Exception:
                 logger.exception("Failed to write groq_last_response.txt")
+
+            if status != 200:
+                raise RuntimeError(f"Groq API returned HTTP status {status}: {text[:300]}")
 
             # try to extract content in common shapes
             try:
@@ -491,3 +505,279 @@ Return valid JSON only.
             "overall_tip": "Practice weaker areas identified above; do timed mock interviews and focus on concise structure.",
             "resources": ["LeetCode", "Cracking the Coding Interview", "Grokking the System Design Interview"]
         }
+
+
+DEFAULT_ROADMAPS = {
+    "full-stack": {
+        "title": "Full-Stack Developer Roadmap",
+        "description": "Master end-to-end web development from frontend user interfaces to scalable backend APIs and databases.",
+        "estimated_duration": "4 - 6 Months",
+        "phases": [
+            {
+                "phase_number": 1,
+                "title": "Frontend Core & Responsive UI",
+                "duration": "4 Weeks",
+                "summary": "Build responsive, accessible modern web interfaces using HTML5, CSS3, JavaScript (ES6+), and React.",
+                "topics": ["Semantic HTML & Accessibility (a11y)", "CSS Layouts (Flexbox, Grid, Responsive Design)", "Modern JavaScript (ES6+, Async/Await, DOM)", "React Fundamentals & Hooks (useState, useEffect)", "State Management & Component Architecture"],
+                "recommended_project": "Interactive Web Dashboard with live API data fetching & dark mode",
+                "interview_focus": "DOM manipulation, closures, event delegation, React lifecycle, and CSS layout algorithms."
+            },
+            {
+                "phase_number": 2,
+                "title": "Backend APIs & Databases",
+                "duration": "5 Weeks",
+                "summary": "Design robust server-side APIs, database schemas, authentication, and backend architecture.",
+                "topics": ["Node.js / Python Django / FastAPI", "RESTful API Design & Best Practices", "Relational Databases (PostgreSQL / MySQL)", "NoSQL & Caching (MongoDB, Redis)", "Authentication (JWT, OAuth2, Session Management)"],
+                "recommended_project": "Multi-tenant REST API with JWT Auth, Role Permissions, and Database Indexing",
+                "interview_focus": "SQL query optimization, database normalization, HTTP status codes, security best practices (CORS, XSS, CSRF)."
+            },
+            {
+                "phase_number": 3,
+                "title": "Full-Stack Integration & Testing",
+                "duration": "4 Weeks",
+                "summary": "Connect frontend and backend into a cohesive web application with automated unit and integration tests.",
+                "topics": ["End-to-End State Management (Redux/Zustand)", "API Integration & Error Handling", "Unit Testing (Jest, PyTest)", "Integration & E2E Testing (Cypress / Playwright)", "Git Flow & CI/CD Pipelines"],
+                "recommended_project": "E-Commerce App with Shopping Cart, Checkout, Webhooks, and Automated Test Suite",
+                "interview_focus": "API pagination, optimistic UI updates, webhooks, error boundary strategies, and testing strategies."
+            },
+            {
+                "phase_number": 4,
+                "title": "System Design, DevOps & Deployment",
+                "duration": "3 Weeks",
+                "summary": "Deploy applications securely to cloud infrastructure with containerization and system design principles.",
+                "topics": ["Docker & Containerization", "Cloud Hosting (AWS EC2/S3, Vercel, Render)", "Nginx Reverse Proxy & SSL Setup", "Basic System Design (Caching, Load Balancers, Queues)", "Performance Optimization (Lighthouse, CDN)"],
+                "recommended_project": "Production Deployment of Full-Stack App with Automated Docker & GitHub Actions CI/CD",
+                "interview_focus": "System architecture trade-offs, caching layers, microservices vs monolith, and performance tuning."
+            }
+        ]
+    },
+    "data-science": {
+        "title": "Data Scientist & Analytics Roadmap",
+        "description": "Master data manipulation, statistical analysis, machine learning models, and data visualization.",
+        "estimated_duration": "5 - 7 Months",
+        "phases": [
+            {
+                "phase_number": 1,
+                "title": "Python & Data Wrangling Fundamentals",
+                "duration": "4 Weeks",
+                "summary": "Learn Python programming for data analysis, numerical computing, and data manipulation.",
+                "topics": ["Python Foundations & Data Structures", "NumPy for Numerical Computation", "Pandas for Data Manipulation & Cleaning", "Exploratory Data Analysis (EDA)", "Data Visualization (Matplotlib, Seaborn)"],
+                "recommended_project": "Exploratory Data Analysis on a Real-World Dataset (e.g. Airbnb or Financial Data)",
+                "interview_focus": "Pandas indexing, vectorization vs loops, handling missing data, and outlier detection."
+            },
+            {
+                "phase_number": 2,
+                "title": "Applied Statistics & Probability",
+                "duration": "4 Weeks",
+                "summary": "Understand core statistical methods, hypothesis testing, distributions, and experiment design.",
+                "topics": ["Descriptive & Inferential Statistics", "Probability Distributions & Bayes Theorem", "Hypothesis Testing & p-values", "A/B Testing Methodology", "Correlation & Regression Analysis"],
+                "recommended_project": "Statistical A/B Testing Analysis for Product Feature Rollout",
+                "interview_focus": "p-value interpretation, Central Limit Theorem, Type I/II errors, and sample size calculations."
+            },
+            {
+                "phase_number": 3,
+                "title": "Machine Learning Algorithms",
+                "duration": "6 Weeks",
+                "summary": "Train, evaluate, and fine-tune supervised and unsupervised machine learning algorithms using Scikit-Learn.",
+                "topics": ["Supervised Learning (Linear/Logistic Regression, Decision Trees)", "Ensemble Methods (Random Forest, XGBoost)", "Unsupervised Learning (K-Means, PCA)", "Model Evaluation (Precision, Recall, ROC-AUC, F1)", "Feature Engineering & Hyperparameter Tuning"],
+                "recommended_project": "Predictive ML Model (e.g. Customer Churn Prediction) with Scikit-Learn and MLflow",
+                "interview_focus": "Bias-Variance trade-off, precision vs recall trade-offs, decision tree splitting criteria, and cross-validation."
+            },
+            {
+                "phase_number": 4,
+                "title": "Deep Learning & Model Deployment",
+                "duration": "4 Weeks",
+                "summary": "Build neural networks and deploy ML models into production as web APIs.",
+                "topics": ["Neural Network Foundations (PyTorch / TensorFlow)", "Natural Language Processing (NLP) & Computer Vision Basics", "ML Model Deployment (FastAPI / Streamlit)", "Model Monitoring & Drift Detection", "SQL for Advanced Data Extraction"],
+                "recommended_project": "Deploy an Interactive ML Web App on HuggingFace / Vercel with FastAPI backend",
+                "interview_focus": "Model deployment lifecycle, handling imbalanced data, and neural network optimization algorithms."
+            }
+        ]
+    }
+}
+
+
+def generate_ai_roadmap(role: str, experience_level: str = "Intermediate") -> dict:
+    """
+    Generate an interactive career and skill roadmap for any role.
+    """
+    role_key = (role or "full-stack").lower().replace(" ", "-")
+    
+    # Check pre-defined fallback roadmaps
+    if role_key in DEFAULT_ROADMAPS:
+        return DEFAULT_ROADMAPS[role_key]
+
+    prompt = f"""
+You are a principal tech career mentor and industry curriculum engineer.
+
+Target Role: {role}
+Target Level: {experience_level}
+
+TASK:
+Create a comprehensive, structured, highly practical career & skill learning roadmap for a candidate aiming to become a successful {role}.
+
+Return ONLY a valid JSON object with the exact structure:
+{{
+  "title": "{role} Career Roadmap",
+  "description": "Short 1-2 sentence overview of the career path.",
+  "estimated_duration": "3 - 5 Months",
+  "phases": [
+    {{
+      "phase_number": 1,
+      "title": "Phase Title",
+      "duration": "3-4 Weeks",
+      "summary": "Short phase summary",
+      "topics": ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"],
+      "recommended_project": "Bespoke project idea for this phase",
+      "interview_focus": "Core interview topics and concepts tested at this stage"
+    }},
+    {{
+      "phase_number": 2,
+      "title": "Phase Title",
+      "duration": "4 Weeks",
+      "summary": "Short phase summary",
+      "topics": ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"],
+      "recommended_project": "Bespoke project idea for this phase",
+      "interview_focus": "Core interview topics and concepts tested at this stage"
+    }},
+    {{
+      "phase_number": 3,
+      "title": "Phase Title",
+      "duration": "4 Weeks",
+      "summary": "Short phase summary",
+      "topics": ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"],
+      "recommended_project": "Bespoke project idea for this phase",
+      "interview_focus": "Core interview topics and concepts tested at this stage"
+    }},
+    {{
+      "phase_number": 4,
+      "title": "Phase Title",
+      "duration": "3 Weeks",
+      "summary": "Short phase summary",
+      "topics": ["Topic 1", "Topic 2", "Topic 3", "Topic 4", "Topic 5"],
+      "recommended_project": "Bespoke project idea for this phase",
+      "interview_focus": "Core interview topics and concepts tested at this stage"
+    }}
+  ]
+}}
+"""
+    try:
+        response = _call_groq_chat(prompt, model="llama-3.1-8b-instant", temperature=0.2)
+        start = response.find("{")
+        end = response.rfind("}")
+        if start != -1 and end > start:
+            parsed = json.loads(response[start:end+1])
+            if "phases" in parsed and isinstance(parsed["phases"], list):
+                return parsed
+    except Exception as e:
+        logging.getLogger(__name__).exception("Failed to generate AI roadmap: %s", e)
+
+    # Generic Fallback Roadmap
+    return {
+        "title": f"{role.title()} Learning & Career Roadmap",
+        "description": f"Master key skills, frameworks, and system design concepts required for a {role} position.",
+        "estimated_duration": "4 - 6 Months",
+        "phases": [
+            {
+                "phase_number": 1,
+                "title": "Foundations & Core Principles",
+                "duration": "4 Weeks",
+                "summary": "Build strong underlying principles, syntax, tools, and basic concepts.",
+                "topics": ["Core Language & Framework Fundamentals", "Essential Tooling & Environment Setup", "Basic Architecture & File Structure", "Version Control (Git & GitHub)", "Code Formatting & Standards"],
+                "recommended_project": "Build an introductory hands-on project demonstrating foundational concepts",
+                "interview_focus": "Syntax, basic data structures, core definitions, and foundational concepts."
+            },
+            {
+                "phase_number": 2,
+                "title": "Intermediate Application & Patterns",
+                "duration": "5 Weeks",
+                "summary": "Develop real-world application components, integrations, and architectural patterns.",
+                "topics": ["API Integration & Asynchronous Workflows", "Data Management & Storage", "State & Control Management", "Error Handling & Debugging Techniques", "Security & Validation Principles"],
+                "recommended_project": "Develop a multi-featured application with data storage and external API integration",
+                "interview_focus": "State flow, error handling strategies, asynchronous operations, and performance tuning."
+            },
+            {
+                "phase_number": 3,
+                "title": "Advanced Engineering & Testing",
+                "duration": "4 Weeks",
+                "summary": "Master automated testing, performance optimization, and architectural best practices.",
+                "topics": ["Automated Unit & Integration Testing", "Performance Profiling & Bottleneck Resolution", "Security Hardening & Best Practices", "Scalability & Modular Refactoring", "CI/CD Pipeline Setup"],
+                "recommended_project": "Add robust test suites, CI/CD automation, and optimization to your project",
+                "interview_focus": "Testing strategies, refactoring patterns, micro vs macro architecture trade-offs."
+            },
+            {
+                "phase_number": 4,
+                "title": "System Design & Interview Readiness",
+                "duration": "3 Weeks",
+                "summary": "Prepare for high-level technical interviews, system design rounds, and portfolio presentations.",
+                "topics": ["High-Level System Design & Scaling", "Portfolio & Project Documentation", "Mock Technical Interview Practice", "Behavioral Interview Prep (STAR method)", "Resume & LinkedIn Optimization"],
+                "recommended_project": "Deploy your complete portfolio project with architecture diagram and live demo link",
+                "interview_focus": "System design trade-offs, STAR situational answers, and portfolio walkthrough."
+            }
+        ]
+    }
+
+
+def generate_resume_jd_questions_groq(resume_text: str, job_description: str, n: int = 5, difficulty: int = 3) -> list:
+    """
+    Generate tailored interview questions based on candidate's resume and job description.
+    """
+    r_snippet = (resume_text or "General background in software and technology.")[:4000]
+    jd_snippet = (job_description or "General software engineering role.")[:4000]
+    
+    prompt = f"""
+You are an expert executive interviewer and senior hiring manager conducting a tailored technical interview.
+
+CANDIDATE RESUME HIGHLIGHTS:
+{r_snippet}
+
+TARGET JOB DESCRIPTION:
+{jd_snippet}
+
+TASK:
+Generate exactly {n} highly targeted interview questions specifically tailored to this candidate and job posting.
+
+RULES:
+- Questions MUST directly evaluate the candidate's actual projects, skills, tools, or achievements mentioned in their resume against the specific requirements, tech stack, and responsibilities of the job description.
+- Include a mix of technical depth, experience validation, project architecture, and role-fit situational scenarios.
+- Do NOT output extra text or markdown wrappers. Output ONLY a valid JSON array of objects.
+
+JSON FORMAT:
+[
+  {{
+    "text": "Based on your resume experience with [Tool/Project], how would you design [Requirement from Job Description]?",
+    "keywords": "skill1, skill2, concept",
+    "difficulty": {difficulty}
+  }}
+]
+"""
+    try:
+        response = _call_groq_chat(prompt, model="llama-3.1-8b-instant", temperature=0.25)
+        start = response.find("[")
+        end = response.rfind("]")
+        if start != -1 and end > start:
+            parsed = json.loads(response[start:end+1])
+            if isinstance(parsed, list) and len(parsed) > 0:
+                return parsed[:n]
+    except Exception as e:
+        logging.getLogger(__name__).exception("Failed to generate Resume/JD questions: %s", e)
+
+    return [
+        {
+            "text": "Walk me through a key project on your resume and how your technical decisions align with the core requirements of this job description.",
+            "keywords": "resume, experience, project, skills",
+            "difficulty": difficulty
+        },
+        {
+            "text": "What is the most technically challenging problem you solved in your past experience, and how does that prepare you for the responsibilities in this job posting?",
+            "keywords": "problem solving, architecture, impact",
+            "difficulty": difficulty
+        },
+        {
+            "text": "Comparing your resume background to the target job description requirements, which core framework or technology is your strongest suit?",
+            "keywords": "strengths, skills match, technical fit",
+            "difficulty": difficulty
+        }
+    ]
+
+

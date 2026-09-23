@@ -26,7 +26,7 @@ class StartSessionForm(forms.Form):
     )
     n_questions = forms.IntegerField(min_value=1, max_value=30, initial=5)
 
-class AnswerForm(forms.Form):
-        class Meta:
-            model = Answer
-            fields = ["answer_text", "audio_file"]
+class AnswerForm(forms.ModelForm):
+    class Meta:
+        model = Answer
+        fields = ["answer_text", "audio_file"]

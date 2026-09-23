@@ -43,9 +43,10 @@ Example:
         response = _call_groq_chat(prompt, model="llama-3.1-8b-instant")
         start = response.find("[")
         end = response.rfind("]")
-        tips = json.loads(response[start:end+1])
-        if isinstance(tips, list):
-            return tips[:5]
+        if start != -1 and end > start:
+            tips = json.loads(response[start:end+1])
+            if isinstance(tips, list):
+                return tips[:5]
     except Exception:
         pass
 
@@ -92,25 +93,67 @@ Return ONLY valid JSON in this format:
         response = _call_groq_chat(prompt, model="llama-3.1-8b-instant")
         start = response.find("{")
         end = response.rfind("}")
-        data = json.loads(response[start:end+1])
-        score = int(data.get("correctness_score", 0))
-        return max(0, min(60, score))
+        if start != -1 and end > start:
+            data = json.loads(response[start:end+1])
+            score = int(data.get("correctness_score", 0))
+            return max(0, min(60, score))
     except Exception:
         # Fallback code will handle if -1 is returned
         return -1
 
 
+def generate_expected_answer(question_text: str, role: str = "", keywords_list: list = None) -> str:
+    """
+    Generate an ideal / expected model answer for an interview question.
+    """
+    if not question_text:
+        return "No specific model answer available."
+
+    keywords_str = ", ".join(keywords_list) if keywords_list else ""
+    prompt = f"""
+You are an expert interview coach and senior technical interviewer.
+
+Question:
+{question_text}
+
+Target Role: {role or 'General'}
+Key Concepts/Themes: {keywords_str or 'N/A'}
+
+TASK:
+Write an ideal, high-scoring sample model answer (2–3 clear paragraphs or bullet points) that a strong candidate should provide for this question.
+Be structured, clear, practical, and direct.
+
+Return ONLY the plain text of the model answer (no JSON, no intro text).
+"""
+    try:
+        response = _call_groq_chat(prompt, model="llama-3.1-8b-instant", temperature=0.3)
+        if response and response.strip():
+            return response.strip()
+    except Exception:
+        pass
+
+    # Fallback response if LLM call is unavailable
+    if keywords_list:
+        return f"A complete answer should address key concepts such as: {', '.join(keywords_list)}. Structure your response using the STAR method (Situation, Task, Action, Result) or state the core definition, key benefits, and practical use cases."
+    return "A top-scoring answer should clearly define the core concept, discuss key principles or trade-offs, and provide a concrete example from real-world practice."
+
+
 def analyze_transcript(text, question):
     # ---------- CASE: NO ANSWER ----------
-    if not text:
+    if not text or text.strip() in ["[Skipped]", "[Voice answer could not be transcribed]", "No answer provided"]:
+        expected = generate_expected_answer(
+            question_text=question.text if question else "",
+            keywords_list=[k.strip() for k in question.keywords.split(',')] if (question and question.keywords) else []
+        )
         return {
             "score": 0,
             "feedback": "You did not provide an answer to this question.",
             "improvement_tips": [
-                "Try answering the question in your own words",
-                "Explain the main idea clearly",
-                "Add a simple example to support your answer"
-            ]
+                "Review the expected answer below to learn key concepts for this question",
+                "Try answering the question in your own words next time",
+                "Explain the main idea clearly with practical examples"
+            ],
+            "expected_answer": expected
         }
 
     # ---------- INTERNAL SCORING (HIDDEN FROM USER) ----------
@@ -152,8 +195,8 @@ def analyze_transcript(text, question):
         score=total_score
     )
 
-    # Safety fallback (AI failure)
-    if not ai_feedback:
+    # Safety fallback (AI failure or invalid structure)
+    if not isinstance(ai_feedback, dict) or "feedback" not in ai_feedback:
         ai_feedback = {
             "feedback": "Your answer addresses the question but could be explained more clearly.",
             "improvement_tips": [
@@ -165,8 +208,8 @@ def analyze_transcript(text, question):
 
     return {
         "score": int(total_score),
-        "feedback": ai_feedback["feedback"],
-        "improvement_tips": ai_feedback["improvement_tips"]
+        "feedback": ai_feedback.get("feedback", "Your answer was recorded."),
+        "improvement_tips": ai_feedback.get("improvement_tips", [])
     }
 
 
@@ -209,6 +252,7 @@ Return ONLY valid JSON in this format:
         response = _call_groq_chat(prompt, model="llama-3.1-8b-instant")
         start = response.find("{")
         end = response.rfind("}")
-        return json.loads(response[start:end+1])
+        if start != -1 and end > start:
+            return json.loads(response[start:end+1])
     except Exception:
         return None

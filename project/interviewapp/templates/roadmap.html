@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}{{ roadmap.title|default:"Career & Skill Roadmap" }} - AI Mock Interview{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto animate-fade-in relative z-10 pb-16">
+    <!-- Header Section -->
+    <div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+            <div class="inline-flex items-center px-3.5 py-1 rounded-full bg-primary-100/70 text-primary-700 text-xs font-black uppercase tracking-wider mb-3 border border-primary-200/60 shadow-sm">
+                <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 20.382V9.618a1 1 0 00-.553-.894L15 6m0 11V6m0 0L9 7"></path></svg>
+                Interactive Career Guidance
+            </div>
+            <h1 class="text-3xl md:text-5xl font-black text-slate-900 tracking-tight mb-2">
+                Career & Skill <span class="text-primary-600">Roadmap</span>
+            </h1>
+            <p class="text-slate-600 font-medium text-base max-w-2xl">
+                {{ roadmap.description|default:"Master key skills, projects, and interview topics step-by-step tailored to your career goal." }}
+            </p>
+        </div>
+
+        <!-- Custom Role Search Form -->
+        <form method="get" action="{% url 'interviewapp:roadmap' %}" class="flex items-center w-full md:w-auto">
+            <div class="relative w-full md:w-80">
+                <input type="text" 
+                       name="role" 
+                       placeholder="Search any role (e.g. DevOps, iOS)..." 
+                       value="{{ selected_role }}"
+                       class="w-full pl-11 pr-24 py-3 bg-white/90 border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-sm transition-all">
+                <svg class="w-4 h-4 text-slate-400 absolute left-4 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <button type="submit" 
+                        class="absolute right-1.5 top-1.5 px-4 py-1.5 bg-primary-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-primary-700 transition-all shadow-md">
+                    Generate
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Popular Roles Switcher -->
+    <div class="mb-10">
+        <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Popular Career Paths</p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+            {% for r in popular_roles %}
+            <a href="?role={{ r.id }}&level={{ experience_level }}" 
+               class="p-3.5 glass-card rounded-2xl border text-center transition-all duration-300 interactive-lift flex flex-col items-center justify-center
+                      {% if selected_role == r.id %}bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-500/25{% else %}hover:border-primary-400 text-slate-700{% endif %}">
+                <div class="text-xs font-bold leading-snug">{{ r.title }}</div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Overall Roadmap Stats & Progress Banner -->
+    <div class="glass-panel rounded-[2.5rem] border border-white/70 shadow-2xl p-8 mb-12 bg-gradient-to-r from-white/90 via-slate-50/80 to-indigo-50/60 relative overflow-hidden">
+        <div class="flex flex-col lg:flex-row items-center justify-between gap-8 relative z-10">
+            <div class="space-y-2 text-center lg:text-left">
+                <span class="px-3 py-1 bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-widest rounded-full">
+                    Target Track: {{ roadmap.title }}
+                </span>
+                <h2 class="text-2xl font-black text-slate-900">{{ roadmap.title }}</h2>
+                <p class="text-xs text-slate-500 font-semibold flex items-center justify-center lg:justify-start">
+                    <svg class="w-4 h-4 mr-1 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Estimated Duration: <strong class="text-slate-800 ml-1">{{ roadmap.estimated_duration }}</strong>
+                </p>
+            </div>
+
+            <!-- Interactive Progress Counter -->
+            <div class="flex items-center space-x-6 bg-white/80 p-5 rounded-3xl border border-white/80 shadow-md min-w-[280px]">
+                <div class="relative w-16 h-16 shrink-0">
+                    <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                        <path stroke-linecap="round" stroke-dasharray="100, 100" stroke-width="3.5" stroke="#E2E8F0" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                        <path id="progress-ring-path" stroke-linecap="round" stroke-dasharray="0, 100" stroke-width="3.5" stroke="#4F46E5" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" class="transition-all duration-700"/>
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center text-xs font-black text-slate-900" id="progress-pct-text">
+                        0%
+                    </div>
+                </div>
+                <div>
+                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">Roadmap Completion</div>
+                    <div class="text-lg font-black text-slate-900" id="progress-count-text">0 / 0 Milestones</div>
+                    <button type="button" onclick="resetRoadmapProgress()" class="text-[10px] text-primary-600 font-bold hover:underline mt-0.5">Reset Checklist</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Multi-Phase Interactive Timeline -->
+    <div class="relative pl-6 md:pl-10 space-y-12">
+        <!-- Connecting Vertical Line -->
+        <div class="absolute left-3 md:left-5 top-4 bottom-4 w-1 bg-gradient-to-b from-primary-500 via-indigo-400 to-teal-400 rounded-full opacity-30"></div>
+
+        {% for phase in roadmap.phases %}
+        <div class="relative group animate-slide-up" style="animation-delay: {{ forloop.counter0 }}00ms;">
+            <!-- Node Marker -->
+            <div class="absolute -left-6 md:-left-10 top-6 w-8 h-8 md:w-10 md:h-10 bg-white border-4 border-primary-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform z-10">
+                <span class="text-xs md:text-sm font-black text-primary-600">{{ phase.phase_number }}</span>
+            </div>
+
+            <!-- Phase Card -->
+            <div class="glass-card rounded-[2.5rem] p-8 md:p-10 border border-white/80 shadow-xl relative overflow-hidden">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-6">
+                    <div>
+                        <div class="flex items-center space-x-3 mb-2">
+                            <span class="px-3 py-1 bg-primary-100 text-primary-700 text-[10px] font-black uppercase tracking-widest rounded-lg">
+                                Phase {{ phase.phase_number }}
+                            </span>
+                            <span class="text-xs font-extrabold text-slate-500">
+                                ⏱️ {{ phase.duration }}
+                            </span>
+                        </div>
+                        <h3 class="text-2xl font-black text-slate-900 tracking-tight">{{ phase.title }}</h3>
+                    </div>
+
+                    <a href="{% url 'interviewapp:start_phase_practice' %}?role={{ selected_role }}&phase={{ phase.phase_number }}&phase_title={{ phase.title|urlencode }}" 
+                       class="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-primary-600 transition-all shadow-md flex items-center justify-center shrink-0">
+                        Practice Phase Questions
+                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </a>
+                </div>
+
+                <p class="text-slate-600 font-medium text-sm leading-relaxed mb-8">
+                    {{ phase.summary }}
+                </p>
+
+                <!-- Key Milestone Skills Checklist -->
+                <div class="mb-8">
+                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Milestone Skill Checklist</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {% for topic in phase.topics %}
+                        <label class="flex items-start p-4 bg-white/70 rounded-2xl border border-slate-200/80 cursor-pointer hover:bg-white hover:shadow-md transition-all group/item">
+                            <input type="checkbox" 
+                                   class="roadmap-checkbox mt-0.5 w-4 h-4 rounded text-primary-600 focus:ring-primary-500 border-slate-300 transition-all"
+                                   data-role="{{ selected_role }}"
+                                   data-phase="{{ phase.phase_number }}"
+                                   data-topic="{{ topic }}"
+                                   onchange="updateRoadmapProgress()">
+                            <span class="ml-3 text-xs font-bold text-slate-800 group-hover/item:text-primary-600 transition-colors topic-label">{{ topic }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Recommended Project -->
+                    <div class="p-6 bg-gradient-to-br from-indigo-500/10 to-primary-500/5 rounded-2xl border border-indigo-500/20">
+                        <div class="flex items-center space-x-2 mb-2 text-indigo-700 font-black text-xs uppercase tracking-wider">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L5.6 15.08a2 2 0 01-1.112-.862l-2-3.5a2 2 0 01.378-2.457l3.666-3.238a2 2 0 011.666-.464l2.455.49a6 6 0 003.86-.517l.318-.158a6 6 0 013.86-.517l2.387.477a2 2 0 011.455 1.406l1 4a2 2 0 01-.54 1.944l-2.463 2.155z"></path></svg>
+                            <span>Recommended Portfolio Project</span>
+                        </div>
+                        <p class="text-xs font-bold text-slate-800 leading-relaxed">{{ phase.recommended_project }}</p>
+                    </div>
+
+                    <!-- Interview Focus -->
+                    <div class="p-6 bg-gradient-to-br from-amber-500/10 to-orange-500/5 rounded-2xl border border-amber-500/20">
+                        <div class="flex items-center space-x-2 mb-2 text-amber-800 font-black text-xs uppercase tracking-wider">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                            <span>Interview Round Focus</span>
+                        </div>
+                        <p class="text-xs font-bold text-slate-800 leading-relaxed">{{ phase.interview_focus }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'mockmate_roadmap_progress_{{ selected_role }}';
+
+    function loadRoadmapProgress() {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        const checkboxes = document.querySelectorAll('.roadmap-checkbox');
+        checkboxes.forEach(cb => {
+            const key = cb.dataset.phase + '_' + cb.dataset.topic;
+            if (saved[key]) {
+                cb.checked = true;
+                const label = cb.closest('label').querySelector('.topic-label');
+                if (label) label.classList.add('line-through', 'text-slate-400');
+            }
+        });
+        updateRoadmapProgress();
+    }
+
+    function updateRoadmapProgress() {
+        const checkboxes = document.querySelectorAll('.roadmap-checkbox');
+        const total = checkboxes.length;
+        let checkedCount = 0;
+        const state = {};
+
+        checkboxes.forEach(cb => {
+            const key = cb.dataset.phase + '_' + cb.dataset.topic;
+            const label = cb.closest('label').querySelector('.topic-label');
+            if (cb.checked) {
+                checkedCount++;
+                state[key] = true;
+                if (label) label.classList.add('line-through', 'text-slate-400');
+            } else {
+                if (label) label.classList.remove('line-through', 'text-slate-400');
+            }
+        });
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+        const pct = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
+        const ringPath = document.getElementById('progress-ring-path');
+        const pctText = document.getElementById('progress-pct-text');
+        const countText = document.getElementById('progress-count-text');
+
+        if (ringPath) ringPath.setAttribute('stroke-dasharray', `${pct}, 100`);
+        if (pctText) pctText.textContent = `${pct}%`;
+        if (countText) countText.textContent = `${checkedCount} / ${total} Milestones`;
+    }
+
+    function resetRoadmapProgress() {
+        showModal({
+            title: "Reset Roadmap Progress?",
+            message: "Are you sure you want to reset all milestone checkboxes for this roadmap?",
+            confirmText: "Reset Progress",
+            cancelText: "Cancel",
+            type: "warning",
+            onConfirm: () => {
+                localStorage.removeItem(STORAGE_KEY);
+                document.querySelectorAll('.roadmap-checkbox').forEach(cb => cb.checked = false);
+                updateRoadmapProgress();
+                if (typeof showToast === 'function') {
+                    showToast("Roadmap progress reset successfully.", "info");
+                }
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', loadRoadmapProgress);
+</script>
+{% endblock %}

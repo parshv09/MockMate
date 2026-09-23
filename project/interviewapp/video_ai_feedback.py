@@ -44,6 +44,7 @@ Return ONLY valid JSON in this format:
         response = _call_groq_chat(prompt, model="llama-3.1-8b-instant")
         start = response.find("{")
         end = response.rfind("}")
-        return json.loads(response[start:end+1])
+        if start != -1 and end > start:
+            return json.loads(response[start:end+1])
     except Exception:
         return None
