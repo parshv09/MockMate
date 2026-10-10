@@ -135,6 +135,62 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         <div class="lg:col-span-5 space-y-8">
+            <!-- 3D AI Interviewer Interactive Avatar Card -->
+            <div class="bg-slate-900 rounded-[2.8rem] p-6 text-white shadow-2xl relative overflow-hidden border border-slate-800/80 group">
+                <div id="avatar-ambient-glow" class="absolute -top-10 -left-10 w-48 h-48 bg-primary-600/30 rounded-full blur-3xl transition-all duration-700 pointer-events-none"></div>
+                <div id="avatar-ambient-glow2" class="absolute -bottom-10 -right-10 w-48 h-48 bg-indigo-600/20 rounded-full blur-3xl transition-all duration-700 pointer-events-none"></div>
+
+                <!-- Top Bar: Status & Persona Switcher -->
+                <div class="flex items-center justify-between mb-4 relative z-10">
+                    <div class="flex items-center space-x-3">
+                        <div class="relative flex h-3 w-3">
+                            <span id="avatar-status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                            <span id="avatar-status-dot" class="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
+                        </div>
+                        <div>
+                            <span class="text-xs font-black uppercase tracking-widest text-slate-300 block">3D AI Interviewer</span>
+                            <span id="avatar-status-text" class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Interactive Mode</span>
+                        </div>
+                    </div>
+
+                    <!-- Persona Selector Pills -->
+                    <div class="flex items-center bg-slate-800/90 rounded-xl p-1 border border-slate-700/80 text-[10px] font-black space-x-1">
+                        <button type="button" onclick="selectAvatarPersona('alex')" id="persona-alex" class="persona-btn px-2.5 py-1 rounded-lg bg-primary-600 text-white transition-all font-black">Alex</button>
+                        <button type="button" onclick="selectAvatarPersona('maya')" id="persona-maya" class="persona-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all">Maya</button>
+                        <button type="button" onclick="selectAvatarPersona('marcus')" id="persona-marcus" class="persona-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all">Marcus</button>
+                    </div>
+                </div>
+
+                <!-- 3D Canvas Container -->
+                <div class="relative w-full h-52 bg-slate-950/70 rounded-2xl overflow-hidden border border-slate-800/80 flex items-center justify-center cursor-grab active:cursor-grabbing">
+                    <canvas id="avatar3DCanvas" class="w-full h-full block"></canvas>
+                    
+                    <!-- Soundwave overlay on speaking -->
+                    <div id="avatar-soundwave" class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-end justify-center space-x-1.5 h-6 opacity-0 transition-opacity duration-300 pointer-events-none">
+                        <div class="w-1 bg-cyan-400 rounded-full h-2 animate-bounce"></div>
+                        <div class="w-1 bg-cyan-400 rounded-full h-4 animate-bounce [animation-delay:0.1s]"></div>
+                        <div class="w-1 bg-cyan-400 rounded-full h-6 animate-bounce [animation-delay:0.2s]"></div>
+                        <div class="w-1 bg-cyan-400 rounded-full h-3 animate-bounce [animation-delay:0.3s]"></div>
+                        <div class="w-1 bg-cyan-400 rounded-full h-5 animate-bounce [animation-delay:0.15s]"></div>
+                    </div>
+                </div>
+
+                <!-- Bottom Controls: Speak Question & Auto-Read -->
+                <div class="mt-4 flex items-center justify-between gap-3 relative z-10">
+                    <button type="button" id="speak-question-btn" onclick="toggleAvatarSpeech()" 
+                            class="flex-1 py-2.5 px-4 bg-primary-600 hover:bg-primary-500 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-primary-500/25 transition-all flex items-center justify-center space-x-2 active:scale-95">
+                        <svg id="speak-btn-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+                        <span id="speak-btn-text">Speak Question</span>
+                    </button>
+
+                    <label class="flex items-center space-x-2 cursor-pointer bg-slate-800/80 hover:bg-slate-800 px-3 py-2 rounded-xl border border-slate-700/60 transition-all">
+                        <input type="checkbox" id="auto-speak-toggle" class="sr-only peer" onchange="toggleAutoSpeak(this.checked)">
+                        <div class="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary-600 relative"></div>
+                        <span class="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Auto-Speak</span>
+                    </label>
+                </div>
+            </div>
+
             <div class="glass-panel p-10 rounded-[3rem] border border-white/70 shadow-2xl relative overflow-hidden">
                 <div class="relative z-10">
                     <div class="flex items-center justify-between mb-10">
@@ -234,17 +290,25 @@
                 </div>
             </div>
 
-            <div class="mt-12 pt-10 border-t border-slate-100/50 flex flex-col md:flex-row items-center justify-between gap-8">
-                <div class="text-xs font-bold text-slate-400 flex items-center">
-                    <kbd class="px-2 py-1 bg-slate-100 rounded-md border border-slate-200 mr-2 text-[9px]">CTRL + ENTER</kbd>
-                    Quick Submit
+            <div class="mt-12 pt-10 border-t border-slate-100/50 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="text-xs font-bold text-slate-500 flex items-center">
+                    <kbd class="px-2.5 py-1 bg-slate-100 rounded-lg border border-slate-300 mr-2 text-[10px] font-black text-slate-700 shadow-sm">CTRL + ENTER</kbd>
+                    Submit Response
                 </div>
                 
-                <button type="submit" id="submit-button" 
-                        class="w-full md:w-auto bg-primary-600 text-white px-12 py-5 rounded-[2rem] font-black text-lg hover:bg-primary-700 shadow-xl transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center">
-                    Finish Question
-                    <svg class="ml-3 w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
-                </button>
+                <div class="flex items-center space-x-4 w-full md:w-auto">
+                    <a href="{% url 'interviewapp:skip_question' session.id %}" 
+                       onclick="return confirmLinkNavigate(event, 'Skip Question?', 'Are you sure you want to skip this question? You can view its model answer on the summary report.', 'warning', 'Skip Question');"
+                       class="w-full md:w-auto px-6 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-[1.8rem] font-bold text-sm transition-all text-center">
+                        Skip Question
+                    </a>
+
+                    <button type="submit" id="submit-button" 
+                            class="w-full md:w-auto bg-primary-600 text-white px-10 py-4 rounded-[1.8rem] font-black text-base hover:bg-primary-700 shadow-lg shadow-primary-500/30 transition-all transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center">
+                        Submit Answer
+                        <svg class="ml-2.5 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                    </button>
+                </div>
             </div>
         </div>
     </form>
@@ -384,6 +448,7 @@
 
 
 </script>
+{% endblock %}
 
 {% block extra_scripts %}
 <script>
@@ -448,7 +513,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // 3. Camera Interaction Logic
-  startBtn.addEventListener("click", async () => {
+  async function turnOnCamera(showError = false) {
+    if (cameraStream && cameraStream.active) return;
     try {
       cameraStream = await navigator.mediaDevices.getUserMedia({
         video: true,
@@ -463,26 +529,39 @@ document.addEventListener("DOMContentLoaded", function () {
       stopBtn.classList.remove("opacity-0"); // Show 'X' button
       
       // Update Status Labels
-      if(statusText) statusText.textContent = "Live";
-      if(statusDot) statusDot.classList.replace('bg-slate-300', 'bg-green-500');
-      if(statusLabelUI) statusLabelUI.textContent = "Live";
-      statusDot.classList.replace('bg-slate-300', 'bg-green-500');
-      statusDot.classList.add('shadow-[0_0_10px_rgba(34,197,94,0.6)]'); // Adds glow
+      if (statusText) statusText.textContent = "Live";
+      if (statusDot) {
+        statusDot.classList.replace('bg-slate-300', 'bg-green-500');
+        statusDot.classList.add('shadow-[0_0_10px_rgba(34,197,94,0.6)]'); // Adds glow
+      }
+      if (statusLabelUI) statusLabelUI.textContent = "Live";
 
-      placeholder.classList.add("hidden");
-      placeholder.style.display = "none";
+      if (placeholder) {
+        placeholder.classList.add("hidden");
+        placeholder.style.display = "none";
+      }
       // Start the background AI processing
       startFrameCapture();
       
     } catch (e) {
-      console.error(e);
-      alert("Camera permission denied. Behavioral analysis disabled.");
+      console.warn("Camera auto-start notice:", e);
+      if (showError) {
+        showAlertModal("Camera Unavailable", "Camera permission was denied or your camera is unavailable. Behavioral analysis will be disabled for this session.", "warning");
+      }
     }
+  }
+
+  // Auto turn on camera immediately when interview session starts
+  turnOnCamera(false);
+
+  startBtn.addEventListener("click", () => {
+    turnOnCamera(true);
   });
 
   stopBtn.addEventListener("click", () => {
     if (cameraStream) {
       cameraStream.getTracks().forEach(t => t.stop());
+      cameraStream = null;
       video.srcObject = null;
     }
 
@@ -492,23 +571,347 @@ document.addEventListener("DOMContentLoaded", function () {
     stopBtn.classList.add("opacity-0");
 
     // Update Status Labels back to original
-    if(statusText) statusText.textContent = "Ready";
-    if(statusDot) statusDot.classList.replace('bg-green-500', 'bg-slate-300');
-    if(statusLabelUI) statusLabelUI.textContent = "Ready";
-placeholder.classList.remove("hidden");
-        placeholder.style.display = "flex";
-        
-        // --- RESET UI STATUS ---
-        stopBtn.disabled = true;
-        stopBtn.classList.add("opacity-0");
-        statusText.textContent = "Standby";
-        statusDot.classList.replace('bg-green-500', 'bg-slate-300');
-        statusDot.classList.remove('shadow-[0_0_8px_rgba(34,197,94,0.6)]');
+    if (statusText) statusText.textContent = "Standby";
+    if (statusDot) {
+      statusDot.classList.replace('bg-green-500', 'bg-slate-300');
+      statusDot.classList.remove('shadow-[0_0_10px_rgba(34,197,94,0.6)]');
+    }
+    if (statusLabelUI) statusLabelUI.textContent = "Standby";
+    if (placeholder) {
+      placeholder.classList.remove("hidden");
+      placeholder.style.display = "flex";
+    }
+
     stopFrameCapture();
+  });
+
+  window.addEventListener("beforeunload", () => {
+    stopFrameCapture();
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+    }
   });
 });
 </script>
 
-{% endblock %}
+<!-- Three.js CDN for 3D AI Interviewer Avatar -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+// --- 3D AI INTERVIEWER AVATAR SYSTEM ---
+let avatarScene, avatarCamera, avatarRenderer;
+let avatarHead, avatarEyes = [], avatarMouth, auraRings = [], particleSystem;
+let isAvatarSpeaking = false;
+let currentPersona = 'alex';
+let mousePos = { x: 0, y: 0 };
+let currentUtterance = null;
+let autoSpeakEnabled = localStorage.getItem('mockmate_auto_speak') === 'true';
+
+const personas = {
+    alex: {
+        name: 'Alex',
+        title: 'Tech Lead',
+        primaryColor: 0x06b6d4,
+        accentColor: 0x3b82f6,
+        pitch: 1.0,
+        rate: 0.95
+    },
+    maya: {
+        name: 'Maya',
+        title: 'HR Director',
+        primaryColor: 0xec4899,
+        accentColor: 0x10b981,
+        pitch: 1.15,
+        rate: 1.0
+    },
+    marcus: {
+        name: 'Marcus',
+        title: 'Senior Architect',
+        primaryColor: 0x8b5cf6,
+        accentColor: 0xf59e0b,
+        pitch: 0.85,
+        rate: 0.9
+    }
+};
+
+function init3DAvatar() {
+    const container = document.getElementById('avatar3DCanvas');
+    if (!container || typeof THREE === 'undefined') return;
+
+    const width = container.clientWidth || 300;
+    const height = container.clientHeight || 200;
+
+    avatarScene = new THREE.Scene();
+    avatarCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    avatarCamera.position.z = 5.5;
+
+    avatarRenderer = new THREE.WebGLRenderer({ canvas: container, alpha: true, antialias: true });
+    avatarRenderer.setSize(width, height);
+    avatarRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    avatarScene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(personas.alex.primaryColor, 2, 50);
+    pointLight.position.set(2, 3, 4);
+    pointLight.name = "personaLight";
+    avatarScene.add(pointLight);
+
+    const fillLight = new THREE.PointLight(0x4f46e5, 1.2, 50);
+    fillLight.position.set(-3, -2, 2);
+    avatarScene.add(fillLight);
+
+    avatarHead = new THREE.Group();
+
+    const headGeo = new THREE.IcosahedronGeometry(1.2, 3);
+    const headMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        metalness: 0.85,
+        roughness: 0.2,
+        flatShading: true
+    });
+    const headMesh = new THREE.Mesh(headGeo, headMat);
+    avatarHead.add(headMesh);
+
+    const wireGeo = new THREE.IcosahedronGeometry(1.22, 2);
+    const wireMat = new THREE.MeshBasicMaterial({
+        color: personas.alex.primaryColor,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.25
+    });
+    const wireMesh = new THREE.Mesh(wireGeo, wireMat);
+    wireMesh.name = "wireMesh";
+    avatarHead.add(wireMesh);
+
+    const eyeGeo = new THREE.SphereGeometry(0.12, 16, 16);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: personas.alex.primaryColor });
+
+    const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+    leftEye.position.set(-0.4, 0.2, 1.05);
+    avatarHead.add(leftEye);
+
+    const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+    rightEye.position.set(0.4, 0.2, 1.05);
+    avatarHead.add(rightEye);
+
+    avatarEyes = [leftEye, rightEye];
+
+    const mouthGeo = new THREE.TorusGeometry(0.2, 0.04, 16, 32);
+    const mouthMat = new THREE.MeshBasicMaterial({ color: personas.alex.primaryColor });
+    avatarMouth = new THREE.Mesh(mouthGeo, mouthMat);
+    avatarMouth.position.set(0, -0.4, 1.1);
+    avatarMouth.rotation.x = Math.PI / 2;
+    avatarHead.add(avatarMouth);
+
+    for (let i = 0; i < 2; i++) {
+        const ringGeo = new THREE.TorusGeometry(1.6 + i * 0.3, 0.015, 16, 64);
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: i === 0 ? personas.alex.primaryColor : 0x6366f1,
+            transparent: true,
+            opacity: 0.4
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI / 3 + i * 0.5;
+        avatarScene.add(ring);
+        auraRings.push(ring);
+    }
+
+    const particleGeo = new THREE.BufferGeometry();
+    const particleCount = 60;
+    const posArray = new Float32Array(particleCount * 3);
+
+    for (let i = 0; i < particleCount * 3; i += 3) {
+        posArray[i] = (Math.random() - 0.5) * 8;
+        posArray[i + 1] = (Math.random() - 0.5) * 8;
+        posArray[i + 2] = (Math.random() - 0.5) * 8;
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const particleMat = new THREE.PointsMaterial({
+        size: 0.04,
+        color: personas.alex.primaryColor,
+        transparent: true,
+        opacity: 0.6
+    });
+    particleSystem = new THREE.Points(particleGeo, particleMat);
+    avatarScene.add(particleSystem);
+
+    avatarScene.add(avatarHead);
+
+    window.addEventListener('mousemove', (e) => {
+        const rect = container.getBoundingClientRect();
+        mousePos.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mousePos.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    });
+
+    animate3DAvatar();
+
+    const autoToggle = document.getElementById('auto-speak-toggle');
+    if (autoToggle) autoToggle.checked = autoSpeakEnabled;
+
+    if (autoSpeakEnabled) {
+        setTimeout(() => speakQuestionText(), 800);
+    }
+}
+
+let clock = new THREE.Clock();
+function animate3DAvatar() {
+    requestAnimationFrame(animate3DAvatar);
+    if (!avatarHead) return;
+
+    const time = clock.getElapsedTime();
+
+    avatarHead.position.y = Math.sin(time * 1.5) * 0.08;
+    avatarHead.rotation.y += (mousePos.x * 0.4 - avatarHead.rotation.y) * 0.05;
+    avatarHead.rotation.x += (-mousePos.y * 0.3 - avatarHead.rotation.x) * 0.05;
+
+    auraRings.forEach((ring, idx) => {
+        ring.rotation.z += 0.005 * (idx % 2 === 0 ? 1 : -1);
+        ring.rotation.y += 0.008;
+    });
+
+    if (particleSystem) {
+        particleSystem.rotation.y = time * 0.05;
+    }
+
+    if (isAvatarSpeaking) {
+        const speakPulse = Math.abs(Math.sin(time * 18));
+        avatarMouth.scale.set(1 + speakPulse * 0.5, 1 + speakPulse * 1.2, 1);
+        avatarHead.position.y += Math.sin(time * 12) * 0.03;
+    } else {
+        avatarMouth.scale.set(1, 1, 1);
+    }
+
+    avatarRenderer.render(avatarScene, avatarCamera);
+}
+
+function selectAvatarPersona(personaKey) {
+    if (!personas[personaKey]) return;
+    currentPersona = personaKey;
+
+    document.querySelectorAll('.persona-btn').forEach(btn => {
+        btn.className = "persona-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all";
+    });
+    const activeBtn = document.getElementById(`persona-${personaKey}`);
+    if (activeBtn) activeBtn.className = "persona-btn px-2.5 py-1 rounded-lg bg-primary-600 text-white transition-all font-black";
+
+    const p = personas[personaKey];
+    if (avatarScene) {
+        const light = avatarScene.getObjectByName("personaLight");
+        if (light) light.color.setHex(p.primaryColor);
+
+        const wireMesh = avatarHead ? avatarHead.getObjectByName("wireMesh") : null;
+        if (wireMesh) wireMesh.material.color.setHex(p.primaryColor);
+
+        avatarEyes.forEach(eye => eye.material.color.setHex(p.primaryColor));
+        if (avatarMouth) avatarMouth.material.color.setHex(p.primaryColor);
+        if (particleSystem) particleSystem.material.color.setHex(p.primaryColor);
+    }
+
+    if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
+        speakQuestionText();
+    }
+}
+
+function toggleAvatarSpeech() {
+    if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        setAvatarSpeakingState(false);
+    } else {
+        speakQuestionText();
+    }
+}
+
+function speakQuestionText() {
+    if (!('speechSynthesis' in window)) {
+        if (typeof showToast === 'function') showToast("Text-to-speech is not supported in this browser.", "warning");
+        return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const questionEl = document.querySelector('h2.text-2xl');
+    const textToSpeak = questionEl ? questionEl.textContent.trim().replace(/^"|"$/g, '') : "";
+
+    if (!textToSpeak) return;
+
+    currentUtterance = new SpeechSynthesisUtterance(textToSpeak);
+    const p = personas[currentPersona] || personas.alex;
+    currentUtterance.pitch = p.pitch;
+    currentUtterance.rate = p.rate;
+
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+        const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+        if (englishVoices.length > 0) {
+            if (currentPersona === 'maya') {
+                const femaleVoice = englishVoices.find(v => v.name.includes('Female') || v.name.includes('Google US English'));
+                if (femaleVoice) currentUtterance.voice = femaleVoice;
+                else currentUtterance.voice = englishVoices[0];
+            } else {
+                currentUtterance.voice = englishVoices[0];
+            }
+        }
+    }
+
+    currentUtterance.onstart = () => {
+        setAvatarSpeakingState(true);
+    };
+
+    currentUtterance.onend = () => {
+        setAvatarSpeakingState(false);
+    };
+
+    currentUtterance.onerror = () => {
+        setAvatarSpeakingState(false);
+    };
+
+    window.speechSynthesis.speak(currentUtterance);
+}
+
+function setAvatarSpeakingState(speaking) {
+    isAvatarSpeaking = speaking;
+    const soundwave = document.getElementById('avatar-soundwave');
+    const statusText = document.getElementById('avatar-status-text');
+    const statusDot = document.getElementById('avatar-status-dot');
+    const statusPing = document.getElementById('avatar-status-ping');
+    const btnText = document.getElementById('speak-btn-text');
+    const btnIcon = document.getElementById('speak-btn-icon');
+
+    if (speaking) {
+        if (soundwave) soundwave.classList.remove('opacity-0');
+        if (statusText) {
+            statusText.textContent = "Speaking...";
+            statusText.className = "text-[10px] font-bold text-green-400 uppercase tracking-wider";
+        }
+        if (statusDot) statusDot.className = "relative inline-flex rounded-full h-3 w-3 bg-green-500";
+        if (statusPing) statusPing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75";
+        if (btnText) btnText.textContent = "Pause Voice";
+        if (btnIcon) btnIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>';
+    } else {
+        if (soundwave) soundwave.classList.add('opacity-0');
+        if (statusText) {
+            statusText.textContent = "Interactive Mode";
+            statusText.className = "text-[10px] font-bold text-cyan-400 uppercase tracking-wider";
+        }
+        if (statusDot) statusDot.className = "relative inline-flex rounded-full h-3 w-3 bg-cyan-500";
+        if (statusPing) statusPing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75";
+        if (btnText) btnText.textContent = "Speak Question";
+        if (btnIcon) btnIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>';
+    }
+}
+
+function toggleAutoSpeak(enabled) {
+    autoSpeakEnabled = enabled;
+    localStorage.setItem('mockmate_auto_speak', enabled);
+    if (enabled && !isAvatarSpeaking) {
+        speakQuestionText();
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    init3DAvatar();
+});
+</script>
 
 {% endblock %}

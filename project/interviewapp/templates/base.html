@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
 
@@ -20,59 +20,108 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ["Inter", "system-ui", "sans-serif"],
+              sans: ["'Plus Jakarta Sans'", "Inter", "system-ui", "sans-serif"],
             },
             colors: {
               primary: {
                 50: "#EEF2FF",
                 100: "#E0E7FF",
-                500: "#4F46E5",
+                500: "#6366F1",
                 600: "#4F46E5",
                 700: "#4338CA",
                 800: "#3730A3",
+                900: "#312E81",
               },
               accent: {
-                400: "#14B8A6",
-                500: "#0D9488",
+                400: "#2DD4BF",
+                500: "#14B8A6",
+                600: "#0D9488",
               },
             },
             animation: {
-              "slide-up": "slideUp 0.5s ease-out",
+              "slide-up": "slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
               "slide-down": "slideDown 0.3s ease-out",
-              "fade-in": "fadeIn 0.5s ease-out",
+              "fade-in": "fadeIn 0.4s ease-out",
               "scale-in": "scaleIn 0.3s ease-out",
-              "pulse-subtle":
-                "pulseSubtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+              "pulse-glow": "pulseGlow 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+              "float": "float 6s ease-in-out infinite",
+            },
+            keyframes: {
+              slideUp: {
+                "0%": { transform: "translateY(16px)", opacity: "0" },
+                "100%": { transform: "translateY(0)", opacity: "1" },
+              },
+              fadeIn: {
+                "0%": { opacity: "0" },
+                "100%": { opacity: "1" },
+              },
+              scaleIn: {
+                "0%": { transform: "scale(0.95)", opacity: "0" },
+                "100%": { transform: "scale(1)", opacity: "1" },
+              },
+              pulseGlow: {
+                "0%, 100%": { opacity: "0.6", transform: "scale(1)" },
+                "50%": { opacity: "1", transform: "scale(1.05)" },
+              },
+              float: {
+                "0%, 100%": { transform: "translateY(0px)" },
+                "50%": { transform: "translateY(-10px)" },
+              },
             },
           },
         },
       };
     </script>
     <style>
-            /* Glassmorphism utility */
+      /* Glassmorphism panel utility */
+      .glass-panel {
+          background: rgba(255, 255, 255, 0.75);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.5);
+      }
+
       .glass-card {
-          background: rgba(255, 255, 255, 0.7);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          border: 1px solid rgba(255, 255, 255, 0.6);
+          box-shadow: 0 10px 30px -10px rgba(79, 70, 229, 0.08);
       }
 
       /* Refined Shadow for modern UI */
       .modern-shadow {
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+          box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.05), 0 8px 16px -8px rgba(0, 0, 0, 0.03);
       }
 
-      /* Hover lift effect for cards */
-      .hover-lift {
-          transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      /* Hover lift effect for interactive elements */
+      .interactive-lift {
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       }
-      .hover-lift:hover {
+      .interactive-lift:hover {
           transform: translateY(-4px);
+          box-shadow: 0 20px 35px -10px rgba(79, 70, 229, 0.15);
       }
+      
       .mirrored-video {
         transform: scaleX(-1);
       }
 
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(241, 245, 249, 0.5);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #CBD5E1;
+        border-radius: 9999px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94A3B8;
+      }
     </style>
     <!-- Alpine.js -->
     <script
@@ -127,35 +176,59 @@
     <!-- Confirmation Modal (global) -->
     <div
       id="global-modal"
-      class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+      class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4 transition-all duration-300 opacity-0"
+      onclick="if(event.target === this) hideModal();"
     >
       <div
-        class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all duration-300 scale-95 opacity-0"
+        id="global-modal-card"
+        class="bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl border border-white/60 max-w-md w-full p-6 md:p-8 transform transition-all duration-300 scale-95 opacity-0 relative"
       >
-        <div class="p-6">
-          <h3
-            class="text-xl font-semibold text-slate-900 mb-2"
-            id="modal-title"
+        <button
+          onclick="hideModal()"
+          class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-all"
+          aria-label="Close modal"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+
+        <div class="flex items-start gap-4">
+          <div
+            id="modal-icon-bg"
+            class="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 transition-colors"
           >
-            Confirm Action
-          </h3>
-          <p class="text-slate-600 mb-6" id="modal-message">
-            Are you sure you want to proceed?
-          </p>
-          <div class="flex justify-end space-x-3">
-            <button
-              onclick="hideModal()"
-              class="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              id="modal-confirm"
-              class="px-4 py-2 bg-primary-600 text-white hover:bg-primary-700 rounded-lg transition-colors"
-            >
-              Confirm
-            </button>
+            <svg id="modal-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
           </div>
+          <div class="flex-1 pr-6">
+            <h3
+              class="text-xl font-black text-slate-900 tracking-tight"
+              id="modal-title"
+            >
+              Confirm Action
+            </h3>
+            <p class="text-slate-600 text-sm font-medium mt-1.5 leading-relaxed" id="modal-message">
+              Are you sure you want to proceed?
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end space-x-3 mt-8 pt-4 border-t border-slate-100" id="modal-actions">
+          <button
+            id="modal-cancel"
+            onclick="hideModal()"
+            class="px-5 py-2.5 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-2xl transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            id="modal-confirm"
+            class="px-6 py-2.5 text-sm font-black text-white bg-red-600 hover:bg-red-700 rounded-2xl shadow-lg shadow-red-500/20 transition-all active:scale-95 flex items-center justify-center min-w-[90px]"
+          >
+            Confirm
+          </button>
         </div>
       </div>
     </div>
@@ -211,38 +284,152 @@
         }, 5000);
       }
 
-      // Modal functions
-      function showModal(title, message, onConfirm) {
+      // Modern Modal functions
+      let currentModalConfirmHandler = null;
+      let currentModalCancelHandler = null;
+
+      function showModal(titleOrOptions, message, onConfirm, type = "danger") {
+        let opts = {};
+        if (typeof titleOrOptions === "object" && titleOrOptions !== null) {
+          opts = titleOrOptions;
+        } else {
+          opts = {
+            title: titleOrOptions,
+            message: message,
+            onConfirm: onConfirm,
+            type: type
+          };
+        }
+
+        const title = opts.title || "Confirm Action";
+        const msg = opts.message || "Are you sure you want to proceed?";
+        const confirmText = opts.confirmText || "Confirm";
+        const cancelText = opts.cancelText !== undefined ? opts.cancelText : "Cancel";
+        const variant = opts.type || "danger";
+        const confirmCb = opts.onConfirm || null;
+        const cancelCb = opts.onCancel || null;
+
         const modal = document.getElementById("global-modal");
+        const card = document.getElementById("global-modal-card");
         const titleEl = document.getElementById("modal-title");
         const messageEl = document.getElementById("modal-message");
         const confirmBtn = document.getElementById("modal-confirm");
+        const cancelBtn = document.getElementById("modal-cancel");
+        const iconBg = document.getElementById("modal-icon-bg");
+        const iconSvg = document.getElementById("modal-icon");
 
         titleEl.textContent = title;
-        messageEl.textContent = message;
+        messageEl.textContent = msg;
+        confirmBtn.textContent = confirmText;
 
-        confirmBtn.onclick = function () {
-          onConfirm();
+        if (variant === "danger") {
+          iconBg.className = "w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 transition-colors";
+          iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>';
+          confirmBtn.className = "px-6 py-2.5 text-sm font-black text-white bg-red-600 hover:bg-red-700 rounded-2xl shadow-lg shadow-red-500/20 transition-all active:scale-95 flex items-center justify-center min-w-[90px]";
+        } else if (variant === "warning") {
+          iconBg.className = "w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0 transition-colors";
+          iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>';
+          confirmBtn.className = "px-6 py-2.5 text-sm font-black text-white bg-amber-600 hover:bg-amber-700 rounded-2xl shadow-lg shadow-amber-500/20 transition-all active:scale-95 flex items-center justify-center min-w-[90px]";
+        } else if (variant === "info" || variant === "primary") {
+          iconBg.className = "w-12 h-12 rounded-2xl bg-primary-100 text-primary-600 flex items-center justify-center flex-shrink-0 transition-colors";
+          iconSvg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>';
+          confirmBtn.className = "px-6 py-2.5 text-sm font-black text-white bg-primary-600 hover:bg-primary-700 rounded-2xl shadow-lg shadow-primary-500/20 transition-all active:scale-95 flex items-center justify-center min-w-[90px]";
+        }
+
+        if (cancelText === false || cancelText === null) {
+          cancelBtn.classList.add("hidden");
+        } else {
+          cancelBtn.classList.remove("hidden");
+          cancelBtn.textContent = cancelText;
+        }
+
+        currentModalConfirmHandler = function () {
           hideModal();
+          if (typeof confirmCb === "function") confirmCb();
+        };
+        currentModalCancelHandler = function () {
+          hideModal();
+          if (typeof cancelCb === "function") cancelCb();
         };
 
+        confirmBtn.onclick = currentModalConfirmHandler;
+
         modal.classList.remove("hidden");
-        setTimeout(() => {
-          modal
-            .querySelector(".transform")
-            .classList.remove("scale-95", "opacity-0");
-        }, 10);
+        requestAnimationFrame(() => {
+          modal.classList.remove("opacity-0");
+          card.classList.remove("scale-95", "opacity-0");
+          card.classList.add("scale-100", "opacity-100");
+        });
       }
 
       function hideModal() {
         const modal = document.getElementById("global-modal");
-        modal
-          .querySelector(".transform")
-          .classList.add("scale-95", "opacity-0");
+        const card = document.getElementById("global-modal-card");
+        if (!modal) return;
+
+        modal.classList.add("opacity-0");
+        if (card) {
+          card.classList.remove("scale-100", "opacity-100");
+          card.classList.add("scale-95", "opacity-0");
+        }
+
         setTimeout(() => {
           modal.classList.add("hidden");
         }, 300);
       }
+
+      function showAlertModal(titleOrOptions, message, type = "info") {
+        let opts = {};
+        if (typeof titleOrOptions === "object" && titleOrOptions !== null) {
+          opts = titleOrOptions;
+        } else {
+          opts = { title: titleOrOptions, message: message, type: type };
+        }
+        opts.cancelText = false;
+        opts.confirmText = opts.confirmText || "OK";
+        showModal(opts);
+      }
+
+      function confirmFormSubmit(event, title = 'Permanently delete this session?', message = 'This action cannot be undone. All recorded answers and history will be deleted.', type = 'danger', confirmText = 'Delete') {
+        event.preventDefault();
+        const form = event.currentTarget.closest('form');
+        showModal({
+          title: title,
+          message: message,
+          confirmText: confirmText,
+          cancelText: "Cancel",
+          type: type,
+          onConfirm: () => {
+            if (form) form.submit();
+          }
+        });
+        return false;
+      }
+
+      function confirmLinkNavigate(event, title, message, type = 'warning', confirmText = 'Proceed') {
+        event.preventDefault();
+        const targetUrl = event.currentTarget.href;
+        showModal({
+          title: title,
+          message: message,
+          confirmText: confirmText,
+          cancelText: "Cancel",
+          type: type,
+          onConfirm: () => {
+            if (targetUrl) window.location.href = targetUrl;
+          }
+        });
+        return false;
+      }
+
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+          const modal = document.getElementById("global-modal");
+          if (modal && !modal.classList.contains("hidden")) {
+            hideModal();
+          }
+        }
+      });
 
       // Character counter for textareas
       document.addEventListener("DOMContentLoaded", function () {

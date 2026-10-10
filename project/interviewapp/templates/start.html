@@ -8,159 +8,224 @@
         <p class="text-lg text-slate-600 font-medium">Tailor your experience for the best results</p>
     </div>
 
+
     <div class="glass-panel rounded-[2.5rem] border border-white/50 shadow-2xl p-8 md:p-12">
-        <form method="post" class="space-y-10">
-            {% csrf_token %}
+        <!-- TAB 1: Role Based Practice -->
+        <div id="tab-content-role" class="animate-fade-in">
+            <form method="post" action="{% url 'interviewapp:start_session' %}" class="space-y-10">
+                {% csrf_token %}
 
-            <div>
-                <div class="flex items-center space-x-3 mb-6">
-                    <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary-500/30">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                <div>
+                    <div class="flex items-center space-x-3 mb-6">
+                        <div class="w-8 h-8 bg-primary-600 rounded-xl flex items-center justify-center shadow-md shadow-primary-500/30">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-black text-slate-900 tracking-tight">1. Select Target Interview Category</h3>
                     </div>
-                    <h3 class="text-xl font-bold text-slate-900">1. Select Target Interview Type</h3>
-                </div>
 
-                {% if form.role.errors %}
-                    <div class="mb-4 p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-bold flex items-center">
-                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
-                        {{ form.role.errors }}
-                    </div>
-                {% endif %}
+                    {% if form.role.errors %}
+                        <div class="mb-4 p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-bold flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                            {{ form.role.errors }}
+                        </div>
+                    {% endif %}
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {% for choice in form.role.field.choices %}
-                    <label class="relative group cursor-pointer">
-                        <input type="radio" name="{{ form.role.name }}" value="{{ choice.0 }}" class="sr-only peer" {% if forloop.first %}checked{% endif %}>
-                        
-                        <div class="h-full p-5 glass-card border border-white/60 rounded-2xl transition-all duration-300 
-                                    peer-checked:bg-primary-600/10 peer-checked:border-primary-500 peer-checked:ring-2 peer-checked:ring-primary-500/20
-                                    group-hover:border-primary-400 group-hover:shadow-lg group-hover:-translate-y-1">
-                            <div class="flex items-center space-x-4">
-                                <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                                    {% if choice.0 == 'tech' %}
-                                        <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
-                                    {% elif choice.0 == 'hr' %}
-                                        <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                                    {% else %}
-                                        <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-                                    {% endif %}
-                                </div>
-                                <div class="flex-1">
-                                    <div class="font-bold text-slate-900">{{ choice.1 }}</div>
-                                    <div class="text-xs text-slate-500 font-medium">
-                                        {% if choice.0 == 'tech' %}Coding & Logic{% elif choice.0 == 'hr' %}Soft Skills{% elif choice.0 == 'apt' %}Logic & IQ{% else %}Scenarios{% endif %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {% for choice in form.role.field.choices %}
+                        <label class="relative group cursor-pointer">
+                            <input type="radio" name="{{ form.role.name }}" value="{{ choice.0 }}" class="sr-only peer" {% if forloop.first %}checked{% endif %}>
+                            
+                            <div class="h-full p-6 glass-card border border-white/70 rounded-2xl transition-all duration-300 interactive-lift
+                                        peer-checked:bg-primary-50 peer-checked:border-primary-500 peer-checked:ring-2 peer-checked:ring-primary-500/30
+                                        group-hover:border-primary-400 group-hover:shadow-lg">
+                                <div class="flex items-center space-x-4">
+                                    <div class="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                                        {% if choice.0 == 'tech' %}
+                                            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                                        {% elif choice.0 == 'hr' %}
+                                            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                        {% else %}
+                                            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                                        {% endif %}
                                     </div>
-                                </div>
-                                <div class="opacity-0 peer-checked:opacity-100 transition-opacity">
-                                    <div class="w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center">
-                                        <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"></path></svg>
+                                    <div class="flex-1">
+                                        <div class="font-extrabold text-slate-900 text-base">{{ choice.1 }}</div>
+                                        <div class="text-xs text-slate-500 font-semibold mt-0.5">
+                                            {% if choice.0 == 'tech' %}Coding & Logic Questions{% elif choice.0 == 'hr' %}Soft Skills & Culture{% elif choice.0 == 'apt' %}Logic, Math & IQ{% else %}Situational Scenarios{% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="opacity-0 peer-checked:opacity-100 transition-opacity">
+                                        <div class="w-6 h-6 bg-primary-600 rounded-full flex items-center justify-center shadow-md">
+                                            <svg class="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"></path></svg>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center space-x-3 mb-6">
+                        <div class="w-8 h-8 bg-primary-600 rounded-xl flex items-center justify-center shadow-md shadow-primary-500/30">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                         </div>
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div>
-                <div class="flex items-center space-x-3 mb-6">
-                    <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary-500/30">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                        <h3 class="text-xl font-black text-slate-900 tracking-tight">2. Target Job Role Title</h3>
                     </div>
-                    <h3 class="text-xl font-bold text-slate-900">2. Target Job Role</h3>
+
+                    <div class="p-6 glass-card rounded-3xl border border-white/60 space-y-2">
+                        <label for="{{ form.job_role.id_for_label }}" class="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2">Job Role Title</label>
+                        {{ form.job_role }}
+                        <span class="text-xs text-slate-500 font-medium block mt-2">AI generates tailored questions matching real-world expectations for this specific position.</span>
+                    </div>
                 </div>
 
-                {% if form.job_role.errors %}
-                    <div class="mb-4 p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-bold flex items-center">
-                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
-                        {{ form.job_role.errors }}
+                <div>
+                    <div class="flex items-center space-x-3 mb-6">
+                        <div class="w-8 h-8 bg-primary-600 rounded-xl flex items-center justify-center shadow-md shadow-primary-500/30">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-black text-slate-900 tracking-tight">3. Select Difficulty Level</h3>
                     </div>
-                {% endif %}
 
-                <div class="p-6 glass-card rounded-3xl border border-white/50 space-y-2">
-                    <label for="{{ form.job_role.id_for_label }}" class="text-xs font-black text-slate-400 uppercase tracking-widest block mb-2">Specify Role</label>
-                    {{ form.job_role }}
-                    <span class="text-[10px] text-slate-400 font-bold block mt-1">Questions will be tailored to industry expectations for this specific job title.</span>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {% for choice in form.difficulty.field.choices %}
+                        <label class="relative group cursor-pointer">
+                            <input type="radio" name="{{ form.difficulty.name }}" value="{{ choice.0 }}" class="sr-only peer" {% if choice.0 == '3' %}checked{% endif %}>
+                            
+                            <div class="h-full p-5 glass-card border border-white/70 rounded-2xl transition-all duration-300 interactive-lift
+                                    peer-checked:bg-primary-50 peer-checked:border-primary-500 peer-checked:ring-2 peer-checked:ring-primary-500/30
+                                    group-hover:border-primary-400 group-hover:shadow-lg text-center">
+                                <div class="font-extrabold text-slate-900 mb-1 text-sm">{{ choice.1 }}</div>
+                                <div class="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                                    {% if choice.0 == '1' %}Fundamental concepts{% elif choice.0 == '3' %}Core concepts & logic{% else %}Deep technical depth{% endif %}
+                                </div>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
                 </div>
-            </div>
 
-            <div>
-                <div class="flex items-center space-x-3 mb-6">
-                    <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary-500/30">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                <div>
+                    <div class="flex items-center space-x-3 mb-6">
+                        <div class="w-8 h-8 bg-primary-600 rounded-xl flex items-center justify-center shadow-md shadow-primary-500/30">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-black text-slate-900 tracking-tight">4. Number of Questions</h3>
                     </div>
-                    <h3 class="text-xl font-bold text-slate-900">3. Select Difficulty Level</h3>
-                </div>
 
-                {% if form.difficulty.errors %}
-                    <div class="mb-4 p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-bold flex items-center">
-                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
-                        {{ form.difficulty.errors }}
-                    </div>
-                {% endif %}
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {% for choice in form.difficulty.field.choices %}
-                    <label class="relative group cursor-pointer">
-                        <input type="radio" name="{{ form.difficulty.name }}" value="{{ choice.0 }}" class="sr-only peer" {% if choice.0 == '3' %}checked{% endif %}>
-                        
-                        <div class="h-full p-5 glass-card border border-white/60 rounded-2xl transition-all duration-300 
-                                peer-checked:bg-primary-600/10 peer-checked:border-primary-500 peer-checked:ring-2 peer-checked:ring-primary-500/20
-                                group-hover:border-primary-400 group-hover:shadow-lg group-hover:-translate-y-1 text-center">
-                            <div class="font-bold text-slate-900 mb-1">{{ choice.1 }}</div>
-                            <div class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-                                {% if choice.0 == '1' %}Fundamental concepts{% elif choice.0 == '3' %}Core concepts & logic{% else %}Deep technical depth{% endif %}
+                    <div class="p-6 glass-card rounded-3xl border border-white/60">
+                        <div class="flex flex-col space-y-4">
+                            <div class="flex justify-between items-center px-1">
+                                <span class="text-xs font-black text-slate-500 uppercase tracking-widest">Select Intensity</span>
+                                <span id="countValue" class="px-4 py-1.5 bg-primary-600 text-white text-xs font-black uppercase tracking-wider rounded-full shadow-md shadow-primary-500/30">
+                                    {{ form.n_questions.value|default:'5' }} questions
+                                </span>
+                            </div>
+                            
+                            <input type="range" 
+                                   id="{{ form.n_questions.id_for_label }}" 
+                                   name="{{ form.n_questions.name }}" 
+                                   min="1" max="20" 
+                                   value="{{ form.n_questions.value|default:'5' }}"
+                                   class="w-full h-3 bg-slate-200 rounded-full appearance-none cursor-pointer accent-primary-600"
+                                   oninput="document.getElementById('countValue').textContent = this.value + ' questions'">
+                            
+                            <div class="flex justify-between px-1">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase">Quick Blitz (1-3)</span>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase">Standard (5-8)</span>
+                                <span class="text-[10px] font-bold text-slate-400 uppercase">Pro Session (10+)</span>
                             </div>
                         </div>
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div>
-                <div class="flex items-center space-x-3 mb-6">
-                    <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary-500/30">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg>
-                    </div>
-                    <h3 class="text-xl font-bold text-slate-900">4. Number of Questions</h3>
-                </div>
-
-                <div class="p-6 glass-card rounded-3xl border border-white/50">
-                    <div class="flex flex-col space-y-4">
-                        <div class="flex justify-between items-center px-2">
-                            <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Select Intensity</span>
-                            <span id="countValue" class="px-4 py-1 bg-primary-600 text-white text-sm font-black rounded-full shadow-lg shadow-primary-500/20">
-                                {{ form.n_questions.value|default:'5' }} questions
-                            </span>
-                        </div>
-                        
-                        <input type="range" 
-                               id="{{ form.n_questions.id_for_label }}" 
-                               name="{{ form.n_questions.name }}" 
-                               min="1" max="20" 
-                               value="{{ form.n_questions.value|default:'5' }}"
-                               class="w-full h-3 bg-slate-200/50 rounded-full appearance-none cursor-pointer accent-primary-600"
-                               oninput="document.getElementById('countValue').textContent = this.value + ' questions'">
-                        
-                        <div class="flex justify-between px-1">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase">Quick Blitz</span>
-                            <span class="text-[10px] font-bold text-slate-400 uppercase">Standard</span>
-                            <span class="text-[10px] font-bold text-slate-400 uppercase">Pro Session</span>
-                        </div>
                     </div>
                 </div>
-            </div>
 
-            <button type="submit" 
-                    class="w-full group bg-slate-900 text-white py-5 px-8 rounded-2xl font-black text-xl hover:bg-primary-600 transition-all shadow-2xl hover:shadow-primary-500/40 flex items-center justify-center relative overflow-hidden active:scale-95">
-                <span class="relative z-10 flex items-center">
-                    Initialize Session
-                    <svg class="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
-                </span>
-                <div class="absolute inset-0 bg-gradient-to-r from-primary-400 to-primary-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            </button>
-        </form>
+                <button type="submit" 
+                        class="w-full group bg-slate-900 text-white py-5 px-8 rounded-2xl font-black text-lg hover:bg-primary-600 transition-all shadow-2xl hover:shadow-primary-500/40 flex items-center justify-center relative overflow-hidden active:scale-95">
+                    <span class="relative z-10 flex items-center">
+                        Initialize Interview Session
+                        <svg class="ml-3 w-5 h-5 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+                    </span>
+                    <div class="absolute inset-0 bg-gradient-to-r from-primary-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                </button>
+            </form>
+        </div>
+
+        <!-- TAB 2: Resume & Job Description Match -->
+        <div id="tab-content-resume" class="hidden animate-fade-in">
+            <form method="post" action="{% url 'interviewapp:start_resume_jd_session' %}" enctype="multipart/form-data" class="space-y-8">
+                {% csrf_token %}
+
+                <div>
+                    <div class="flex items-center space-x-3 mb-6">
+                        <div class="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-500/30">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-black text-slate-900 tracking-tight">1. Upload Candidate Resume</h3>
+                    </div>
+
+                    <div class="space-y-4">
+                        <label class="flex flex-col items-center justify-center p-8 glass-card border-dashed border-2 border-slate-300 hover:border-indigo-500 rounded-3xl cursor-pointer transition-all group">
+                            <div class="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-3 group-hover:scale-110 transition-transform">
+                                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                            </div>
+                            <span class="text-sm font-extrabold text-slate-800 group-hover:text-indigo-600" id="resume-filename">Click to upload Resume (PDF / TXT)</span>
+                            <span class="text-xs text-slate-400 font-medium mt-1">Supports PDF, Plain Text (.txt), or Markdown (.md)</span>
+                            <input type="file" name="resume_file" accept=".pdf,.txt,.md" class="hidden" onchange="document.getElementById('resume-filename').textContent = this.files[0] ? 'Selected: ' + this.files[0].name : 'Click to upload Resume (PDF / TXT)';">
+                        </label>
+
+                        <div class="relative">
+                            <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+                            <div class="relative flex justify-center text-xs uppercase"><span class="bg-white/80 px-4 text-slate-400 font-bold">Or Paste Resume Text</span></div>
+                        </div>
+
+                        <textarea name="resume_text" rows="4" placeholder="Paste key skills, projects, and work experience from your resume..."
+                                  class="w-full p-4 glass-card border border-white/80 rounded-2xl text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none shadow-inner"></textarea>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center space-x-3 mb-6">
+                        <div class="w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-500/30">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <h3 class="text-xl font-black text-slate-900 tracking-tight">2. Paste Target Job Description (JD)</h3>
+                    </div>
+
+                    <textarea name="job_description" rows="5" placeholder="Paste target job spec, required technical stack, responsibilities, and qualifications..."
+                              class="w-full p-5 glass-card border border-white/80 rounded-3xl text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none shadow-inner"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2">Target Difficulty</label>
+                        <select name="difficulty" class="w-full p-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-800">
+                            <option value="1">Entry-Level / Fundamental</option>
+                            <option value="3" selected>Mid-Level / Core Skills</option>
+                            <option value="5">Senior / Advanced Deep Dive</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2">Question Count</label>
+                        <select name="n_questions" class="w-full p-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-800">
+                            <option value="3">3 Questions (Quick Practice)</option>
+                            <option value="5" selected>5 Questions (Standard Round)</option>
+                            <option value="8">8 Questions (In-Depth Round)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" 
+                        class="w-full group bg-indigo-600 text-white py-5 px-8 rounded-2xl font-black text-lg hover:bg-indigo-700 transition-all shadow-2xl hover:shadow-indigo-500/40 flex items-center justify-center relative overflow-hidden active:scale-95">
+                    <span class="relative z-10 flex items-center">
+                        Launch Resume & JD Tailored Interview
+                        <svg class="ml-3 w-5 h-5 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+                    </span>
+                </button>
+            </form>
+        </div>
     </div>
 
     <div class="mt-8 glass-panel rounded-3xl border border-white/40 p-8 shadow-xl">
@@ -188,8 +253,26 @@
 </div>
 
 <script>
-  // Initialize the count display
+  function switchSetupTab(mode) {
+      const roleContent = document.getElementById('tab-content-role');
+      const resumeContent = document.getElementById('tab-content-resume');
+
+      if (mode === 'resume') {
+          if (roleContent) roleContent.classList.add('hidden');
+          if (resumeContent) resumeContent.classList.remove('hidden');
+      } else {
+          if (resumeContent) resumeContent.classList.add('hidden');
+          if (roleContent) roleContent.classList.remove('hidden');
+      }
+  }
+
+  // Initialize the count display & check URL parameters for tab auto-switching
   document.addEventListener("DOMContentLoaded", function () {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'resume') {
+        switchSetupTab('resume');
+    }
+
     const rangeInput = document.getElementById(
       "{{ form.n_questions.id_for_label }}"
     );
