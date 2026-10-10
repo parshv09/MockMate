@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_BASE = "https://api.groq.com/openai/v1"
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
 MAX_RETRIES = 4
 RETRY_BACKOFF = 1.5
@@ -662,7 +662,7 @@ Return ONLY a valid JSON object with the exact structure:
 }}
 """
     try:
-        response = _call_groq_chat(prompt, model="llama-3.1-8b-instant", temperature=0.2)
+        response = _call_groq_chat(prompt, temperature=0.2)
         start = response.find("{")
         end = response.rfind("}")
         if start != -1 and end > start:
@@ -752,7 +752,7 @@ JSON FORMAT:
 ]
 """
     try:
-        response = _call_groq_chat(prompt, model="llama-3.1-8b-instant", temperature=0.25)
+        response = _call_groq_chat(prompt, temperature=0.25)
         start = response.find("[")
         end = response.rfind("]")
         if start != -1 and end > start:

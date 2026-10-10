@@ -40,7 +40,7 @@ Example:
 """
 
     try:
-        response = _call_groq_chat(prompt, model="llama-3.1-8b-instant")
+        response = _call_groq_chat(prompt)
         start = response.find("[")
         end = response.rfind("]")
         if start != -1 and end > start:
@@ -90,7 +90,7 @@ Return ONLY valid JSON in this format:
 }}
 """
     try:
-        response = _call_groq_chat(prompt, model="llama-3.1-8b-instant")
+        response = _call_groq_chat(prompt)
         start = response.find("{")
         end = response.rfind("}")
         if start != -1 and end > start:
@@ -126,7 +126,7 @@ Be structured, clear, practical, and direct.
 Return ONLY the plain text of the model answer (no JSON, no intro text).
 """
     try:
-        response = _call_groq_chat(prompt, model="llama-3.1-8b-instant", temperature=0.3)
+        response = _call_groq_chat(prompt, temperature=0.3)
         if response and response.strip():
             return response.strip()
     except Exception:
@@ -249,7 +249,7 @@ Return ONLY valid JSON in this format:
 """
 
     try:
-        response = _call_groq_chat(prompt, model="llama-3.1-8b-instant")
+        response = _call_groq_chat(prompt)
         start = response.find("{")
         end = response.rfind("}")
         if start != -1 and end > start:

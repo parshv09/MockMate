@@ -275,8 +275,7 @@ def start_session(request):
                     job_role=job_role, 
                     n=n, 
                     difficulty=difficulty, 
-                    previous_questions=prev_questions,
-                    model="llama-3.1-8b-instant"
+                    previous_questions=prev_questions
                 )
             except Exception as e:
                 logger.exception("Groq generation error: %s", e)
@@ -420,8 +419,7 @@ def start_phase_practice(request):
             job_role=job_role,
             n=n,
             difficulty=difficulty,
-            previous_questions=prev_questions,
-            model="llama-3.1-8b-instant"
+            previous_questions=prev_questions
         )
     except Exception as e:
         logger.exception("Groq phase generation error: %s", e)
@@ -744,7 +742,7 @@ def session_summary(request, session_id):
 
     if not suggestions:
         try:
-            suggestions = generate_session_suggestions(session, answer_payload, model="llama-3.1-8b-instant")
+            suggestions = generate_session_suggestions(session, answer_payload)
             # If the model returned something unexpected, ensure keys exist
             if not isinstance(suggestions, dict):
                 suggestions = None
@@ -1311,4 +1309,4 @@ def start_resume_jd_session(request):
 
     messages.success(request, f"Launched Resume & Job Description Tailored Session!")
     return redirect('interviewapp:next_question', session_id=s.id)
-
+
