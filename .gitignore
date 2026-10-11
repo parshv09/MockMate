@@ -217,7 +217,8 @@ __pycache__/
 db.sqlite3
 media/
 groq_last_response.txt
-
+echo "**/groq_last_response.txt" >> .gitignore
+git rm --cached --ignore-unmatch "**/groq_last_response.txt"
 .pytest_cache/
 .coverage
 htmlcov/
