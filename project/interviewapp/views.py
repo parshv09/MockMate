@@ -492,6 +492,9 @@ def next_question(request, session_id):
     if session.user != request.user:
         return HttpResponseForbidden("This session does not belong to you.")
 
+    if session.completed:
+        return redirect('interviewapp:session_summary', session_id=session.id)
+
     # find the next Answer placeholder for this session that is not processed
     # prefer 'processed' flag, or if you use answer_text, use answer_text=''
     next_ans = session.answers.filter(processed=False).order_by('index').first()
@@ -598,6 +601,7 @@ def submit_answer(request, session_id):
 
     
 @login_required
+@require_POST
 def skip_question(request, session_id):
     session = get_object_or_404(InterviewSession, id=session_id)
     if session.user != request.user:
@@ -636,6 +640,7 @@ def skip_question(request, session_id):
     return redirect('interviewapp:next_question', session_id=session.id)
 
 @login_required
+@require_POST
 def end_session(request, session_id):
     session = get_object_or_404(InterviewSession, id=session_id)
     if session.user != request.user:
@@ -915,6 +920,7 @@ def download_report(request, session_id):
     scores = [a.score for a in answers if a.score is not None]
     avg = (sum(scores) / len(scores)) if scores else 0
     duration = int((session.completed_at - session.started_at).total_seconds() / 60) if (session.completed_at and session.started_at) else 0
+    report_date = session.completed_at or session.started_at or timezone.now()
 
     # Calculate Breakdown Metrics (excluding skipped/empty answers)
     total_q = answers.count()
@@ -955,7 +961,7 @@ def download_report(request, session_id):
     # ================= 1. BRANDED HEADER =================
     header_data = [
         [Paragraph("MockInterview<font color='#4F46E5'>.ai</font>", h1_style), 
-         Paragraph(f"REPORT ID: #{session.id}<br/>DATE: {session.completed_at.strftime('%d %b %Y')}", label_style)]
+         Paragraph(f"REPORT ID: #{session.id}<br/>DATE: {report_date.strftime('%d %b %Y')}", label_style)]
     ]
     header_tab = Table(header_data, colWidths=[350, 150])
     header_tab.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('ALIGN', (1,0), (1,0), 'RIGHT')]))
@@ -1082,6 +1088,17 @@ def upload_frame(request):
 
     if not frame or not session_id:
         return JsonResponse({"status": "error"}, status=400)
+
+    try:
+        sid = int(session_id)
+    except (TypeError, ValueError):
+        return JsonResponse({"status": "error"}, status=400)
+
+    session = InterviewSession.objects.filter(id=sid).first()
+    if session is None:
+        return JsonResponse({"status": "error"}, status=404)
+    if session.user_id != request.user.id:
+        return JsonResponse({"status": "forbidden"}, status=403)
 
     image_bytes = frame.read()
 
