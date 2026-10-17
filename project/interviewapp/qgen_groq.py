@@ -186,18 +186,11 @@ def _call_groq_chat(prompt: str, model: Optional[str] = None, temperature: float
             logger.info("Groq call attempt %s model=%s", attempt, body["model"])
             resp = requests.post(url, headers=headers, json=body, timeout=CALL_TIMEOUT)
             status = getattr(resp, "status_code", None)
-            text = resp.text or ""
-            logger.info("Groq status %s (len=%s)", status, len(text))
-            # save raw response for debugging
-            try:
-                with open("groq_last_response.txt", "w", encoding="utf-8") as f:
-                    f.write(f"STATUS:{status}\n")
-                    f.write(text)
-            except Exception:
-                logger.exception("Failed to write groq_last_response.txt")
+            body_len = len(resp.text or "")
+            logger.info("Groq status %s (len=%s)", status, body_len)
 
             if status != 200:
-                raise RuntimeError(f"Groq API returned HTTP status {status}: {text[:300]}")
+                raise RuntimeError(f"Groq API returned HTTP status {status}")
 
             # try to extract content in common shapes
             try:
@@ -217,9 +210,11 @@ def _call_groq_chat(prompt: str, model: Optional[str] = None, temperature: float
                 try:
                     content = data["output"][0]["content"][0]["text"]
                 except Exception:
-                    content = str(data)
+                    content = None
+            elif data:
+                content = None
             else:
-                content = text
+                content = None
 
             if not content:
                 raise RuntimeError("Empty content returned by Groq")
