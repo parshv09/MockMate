@@ -222,3 +222,6 @@ git rm --cached --ignore-unmatch "**/groq_last_response.txt"
 .pytest_cache/
 .coverage
 htmlcov/
+
+# RAG vector database index (ChromaDB persistent storage)
+rag_index/
