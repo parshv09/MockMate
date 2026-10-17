@@ -230,21 +230,59 @@ def _call_groq_chat(prompt: str, model: Optional[str] = None, temperature: float
             time.sleep(RETRY_BACKOFF * attempt)
     raise last_exc or RuntimeError("Groq call failed after retries")
 
+
 def _extract_json_array_from_text(text: str) -> List[Dict]:
-    start = text.find("[")
-    end = text.rfind("]")
-    if start == -1 or end == -1 or end <= start:
-        logger.warning("No JSON array found in model text. Snippet: %s", text[:1000])
-        raise ValueError("No JSON array found in model output; see groq_last_response.txt")
-    raw = text[start:end+1]
+    """
+    Extract a JSON array from the model response.
+    Handles plain JSON, Markdown code fences, and extra surrounding text.
+    """
+    if not text or not text.strip():
+        raise ValueError("Model returned an empty response")
+
+    text = text.strip()
+
+    # First, try parsing the complete response directly.
     try:
-        parsed = json.loads(raw)
-    except Exception as e:
-        logger.exception("JSON parse error for raw (len=%s): %s", len(raw), e)
-        raise
-    if not isinstance(parsed, list):
-        raise ValueError("Parsed JSON is not a list")
-    return parsed
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    # Remove Markdown code fences if present.
+    cleaned = re.sub(
+        r"```(?:json)?\s*|\s*```",
+        "",
+        text,
+        flags=re.IGNORECASE
+    ).strip()
+
+    try:
+        parsed = json.loads(cleaned)
+        if isinstance(parsed, list):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    # Find a JSON array without relying on the first and last square brackets.
+    decoder = json.JSONDecoder()
+
+    for match in re.finditer(r"\[", cleaned):
+        try:
+            parsed, _ = decoder.raw_decode(cleaned[match.start():])
+            if isinstance(parsed, list):
+                return parsed
+        except json.JSONDecodeError:
+            continue
+
+    logger.warning(
+        "No valid JSON array found in model output. Snippet: %s",
+        text[:1000]
+    )
+    raise ValueError(
+        "No valid JSON array found in model output; see groq_last_response.txt"
+    )
+
 
 def _validate_question_obj(obj: dict) -> Optional[dict]:
     """

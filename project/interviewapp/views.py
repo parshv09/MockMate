@@ -7,6 +7,7 @@ from django.http import HttpResponseForbidden
 from django.db import transaction
 from django.utils import timezone
 from django import forms
+from django.conf import settings
 from .models import GeneratedQuestion, InterviewSession, Answer, UserProfile, SessionQuestion
 from .forms import StartSessionForm, AnswerForm
 from .nlp_utils import analyze_transcript, generate_expected_answer
@@ -15,6 +16,13 @@ import logging
 from django.contrib import messages
 from .qgen_groq import generate_questions_groq, signature_of_text, generate_session_suggestions, generate_ai_roadmap, generate_resume_jd_questions_groq
 from .views_helpers import generate_question_stub  # if you keep stub in a helper; otherwise use local stub
+
+# RAG-augmented question generation (conditionally used)
+try:
+    from .rag import generate_questions_with_rag
+    _rag_available = True
+except ImportError:
+    _rag_available = False
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from textwrap import wrap
@@ -268,17 +276,28 @@ def start_session(request):
             max_attempts = max(50, n * 10)
             created_question_ids = []  # keep order of created questions
 
-            # 1) Try LLM generation first
+            # 1) Try LLM generation first (RAG or standard Groq)
+            rag_enabled = getattr(settings, 'RAG_ENABLED', False) and _rag_available
+            question_source = "rag" if rag_enabled else "llm"
             try:
-                llm_questions = generate_questions_groq(
-                    role=role_for_prompt, 
-                    job_role=job_role, 
-                    n=n, 
-                    difficulty=difficulty, 
-                    previous_questions=prev_questions
-                )
+                if rag_enabled:
+                    llm_questions = generate_questions_with_rag(
+                        role=role_for_prompt,
+                        job_role=job_role,
+                        n=n,
+                        difficulty=difficulty,
+                        previous_questions=prev_questions
+                    )
+                else:
+                    llm_questions = generate_questions_groq(
+                        role=role_for_prompt, 
+                        job_role=job_role, 
+                        n=n, 
+                        difficulty=difficulty, 
+                        previous_questions=prev_questions
+                    )
             except Exception as e:
-                logger.exception("Groq generation error: %s", e)
+                logger.exception("Question generation error (rag=%s): %s", rag_enabled, e)
                 messages.warning(request, "AI question generation temporarily failed — using fallback questions.")
                 llm_questions = []
 
@@ -298,7 +317,7 @@ def start_session(request):
                         "difficulty": qobj.get("difficulty", 2),
                         "text": text,
                         "keywords": qobj.get("keywords", ""),
-                        "source": "llm"
+                        "source": question_source
                     }
                 )
                 # ensure role stored is the raw_role key so session lookups remain consistent
@@ -413,16 +432,27 @@ def start_phase_practice(request):
         session__role=raw_role
     ).order_by('-id').values_list('question__text', flat=True).distinct()[:15])
 
+    rag_enabled = getattr(settings, 'RAG_ENABLED', False) and _rag_available
+    question_source = "rag" if rag_enabled else "llm"
     try:
-        llm_questions = generate_questions_groq(
-            role=role_for_prompt,
-            job_role=job_role,
-            n=n,
-            difficulty=difficulty,
-            previous_questions=prev_questions
-        )
+        if rag_enabled:
+            llm_questions = generate_questions_with_rag(
+                role=role_for_prompt,
+                job_role=job_role,
+                n=n,
+                difficulty=difficulty,
+                previous_questions=prev_questions
+            )
+        else:
+            llm_questions = generate_questions_groq(
+                role=role_for_prompt,
+                job_role=job_role,
+                n=n,
+                difficulty=difficulty,
+                previous_questions=prev_questions
+            )
     except Exception as e:
-        logger.exception("Groq phase generation error: %s", e)
+        logger.exception("Groq phase generation error (rag=%s): %s", rag_enabled, e)
         llm_questions = []
 
     created_question_ids = []
@@ -442,7 +472,7 @@ def start_phase_practice(request):
                 "difficulty": qobj.get("difficulty", 3),
                 "text": text,
                 "keywords": qobj.get("keywords", ""),
-                "source": "llm"
+                "source": question_source
             }
         )
         created_question_ids.append(qrow.id)

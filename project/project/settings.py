@@ -129,7 +129,20 @@ load_dotenv(BASE_DIR / ".env")
 load_dotenv(BASE_DIR.parent / ".env")
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+
+# ---------------------------------------------------------------------------
+# RAG (Retrieval-Augmented Generation) Configuration
+# ---------------------------------------------------------------------------
+RAG_ENABLED = os.getenv("RAG_ENABLED", "TRUE").lower() in ("true", "1", "yes")
+RAG_TOP_K = int(os.getenv("RAG_TOP_K", "5"))
+RAG_CHUNK_SIZE = int(os.getenv("RAG_CHUNK_SIZE", "800"))
+RAG_CHUNK_OVERLAP = int(os.getenv("RAG_CHUNK_OVERLAP", "120"))
+RAG_SIMILARITY_THRESHOLD = float(os.getenv("RAG_SIMILARITY_THRESHOLD", "0.3"))
+RAG_COLLECTION_NAME = os.getenv("RAG_COLLECTION_NAME", "mockmate_interview_knowledge")
+RAG_EMBEDDING_MODEL = os.getenv("RAG_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+KNOWLEDGE_BASE_DIR = BASE_DIR / "knowledge_base"
+RAG_INDEX_DIR = BASE_DIR / "rag_index"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
