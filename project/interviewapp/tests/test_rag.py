@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase, override_settings
 from django.contrib.auth.models import User
 
-from interviewapp.models import GeneratedQuestion, InterviewSession
+from interviewapp.models import GeneratedQuestion, InterviewSession, Resume
 from interviewapp.rag.document_loader import Document, load_documents
 from interviewapp.rag.text_splitter import Chunk, split_documents
 from interviewapp.rag.retriever import (
@@ -309,3 +309,66 @@ class TestModelIntegration(TestCase):
         )
         self.assertEqual(session.user, self.user)
         self.assertEqual(session.role, "tech")
+
+
+class TestResumeRAG(TestCase):
+    """Test suite for Resume Library and Resume RAG generation."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="resumetester", password="password123")
+        self.resume = Resume.objects.create(
+            user=self.user,
+            title="Senior Python Backend CV",
+            extracted_text="""
+            John Doe - Backend Software Engineer
+            Projects:
+            1. E-Commerce Payment Gateway: Built asynchronous checkout microservice using FastAPI, Redis, and PostgreSQL. Handled 5000 req/sec with distributed locking.
+            2. Real-time Analytics Dashboard: Designed Kafka streaming pipeline with Python and ClickHouse for live transaction tracking.
+            Skills: Python, FastAPI, Django, PostgreSQL, Redis, Kafka, Docker, Kubernetes.
+            """,
+        )
+
+    def test_resume_model_creation(self):
+        self.assertEqual(self.resume.user, self.user)
+        self.assertEqual(self.resume.title, "Senior Python Backend CV")
+        self.assertTrue(Resume.objects.filter(id=self.resume.id).exists())
+
+    @patch("interviewapp.rag.resume_rag.get_embedding_model")
+    def test_resume_indexing_and_retrieval(self, mock_em_getter):
+        from interviewapp.rag.resume_rag import index_resume, retrieve_resume_context_for_jd
+
+        mock_em = MagicMock()
+        mock_em.is_available.return_value = True
+        # Return mock embeddings matching number of chunks
+        mock_em.embed_texts.side_effect = lambda texts: [[0.1] * 384 for _ in texts]
+        mock_em.embed_query.return_value = [0.1] * 384
+        mock_em_getter.return_value = mock_em
+
+        chunk_count = index_resume(self.resume)
+        self.assertTrue(chunk_count > 0)
+
+        chunks = retrieve_resume_context_for_jd(
+            resume_obj=self.resume,
+            job_description="Seeking a Python Backend Engineer with strong FastAPI, Redis, and PostgreSQL experience.",
+            top_k=2,
+        )
+        self.assertTrue(len(chunks) > 0)
+        self.assertIn("FastAPI", chunks[0]["text"])
+
+    def test_build_resume_jd_rag_prompt(self):
+        from interviewapp.rag.resume_rag import build_resume_jd_rag_prompt
+
+        mock_chunks = [
+            {"text": "Project 1: Payment microservice using FastAPI and Redis with distributed locking."}
+        ]
+        prompt = build_resume_jd_rag_prompt(
+            resume_chunks=mock_chunks,
+            job_description="Senior Python Developer building high-scale fintech systems.",
+            n=3,
+            difficulty=4,
+        )
+        self.assertIn("TARGET JOB DESCRIPTION", prompt)
+        self.assertIn("CANDIDATE RESUME EVIDENCE", prompt)
+        self.assertIn("FastAPI", prompt)
+        self.assertIn("fintech", prompt)
+
