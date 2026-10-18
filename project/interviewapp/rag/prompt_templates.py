@@ -49,9 +49,12 @@ def build_rag_prompt(
     # Define difficulty instructions matching qgen_groq._build_prompt
     if diff_val <= 2:
         diff_instruction = (
-            "The questions should be introductory, fundamental, and conceptual. "
-            "Focus on basic definitions, syntax, simple operations, and core vocabulary suited for entry-level candidates "
-            "or interns. Avoid complex architectural, design pattern, or optimization questions."
+            "TARGET LEVEL: ENTRY-LEVEL / INTERN / JUNIOR DEVELOPER (Difficulty 1/5).\n"
+            "MANDATORY DIFFICULTY CONSTRAINTS:\n"
+            "- The questions MUST be basic, conceptual, and introductory.\n"
+            "- Focus on core syntax, fundamental definitions, simple operations, and basic built-in functions.\n"
+            "- STRICT PROHIBITIONS: ABSOLUTELY DO NOT ask about distributed systems, microservices, concurrency/race conditions, high-traffic scaling, cache invalidation, or architectural trade-offs.\n"
+            "- Keep questions simple, welcoming, and appropriate for someone with zero to one year of experience."
         )
     elif diff_val <= 4:
         diff_instruction = (

@@ -147,20 +147,42 @@ def build_resume_jd_rag_prompt(
     diff_val = max(1, min(5, int(difficulty or 3)))
 
     if diff_val <= 2:
-        diff_instruction = (
-            "Questions should be introductory to intermediate. Focus on foundational concepts behind "
-            "the technologies the candidate used in their projects, their specific contribution, and basic problem solving."
-        )
+        level_title = "ENTRY-LEVEL / INTERN / FRESH GRADUATE (0-1 Years Experience)"
+        diff_instruction = f"""
+TARGET CANDIDATE LEVEL: {level_title}
+DIFFICULTY SCORE: {diff_val}/5 (BEGINNER / FUNDAMENTAL)
+
+CRITICAL DIFFICULTY CONSTRAINTS:
+- Questions MUST be basic, welcoming, and appropriate for an entry-level candidate or intern.
+- Focus on fundamental concepts, basic definitions, what tools they used, what their personal contribution was in their project, and how they learned the technologies.
+- Ask them to explain how their project works at a high level, how they wrote simple functions or queries, or how they fixed a simple bug.
+- STRICT PROHIBITIONS FOR ENTRY-LEVEL:
+  * ABSOLUTELY DO NOT ask about distributed systems, microservices, high-traffic scaling, cache invalidation, load balancing, multi-threaded concurrency, or system architecture trade-offs.
+  * DO NOT ask aggressive, senior-level grilling questions.
+- Good Entry-Level Question Example: "On your resume you listed Python and MySQL for your web project. Can you explain how your application connects to the database, and what a foreign key was used for?"
+- Good Entry-Level Question Example: "In your frontend project, how did you handle user input and what is the difference between props and state?"
+"""
     elif diff_val <= 4:
-        diff_instruction = (
-            "Questions should test practical engineering depth, design trade-offs, architecture choices, "
-            "debugging tough issues, and how their resume projects fulfill key requirements in the Job Description."
-        )
+        level_title = "MID-LEVEL DEVELOPER (2-4 Years Experience)"
+        diff_instruction = f"""
+TARGET CANDIDATE LEVEL: {level_title}
+DIFFICULTY SCORE: {diff_val}/5 (INTERMEDIATE PRACTICAL)
+
+CRITICAL DIFFICULTY CONSTRAINTS:
+- Questions should test practical development knowledge, real-world implementation, and best practices.
+- Ask about REST API structure, error handling, database indexing, testing strategies, state management, and edge-case handling in their resume projects.
+- Probe how their experience aligns with the core requirements in the Job Description.
+"""
     else:
-        diff_instruction = (
-            "Questions should be deeply technical and rigorous. Challenge the candidate on scalability, concurrency, "
-            "system bottlenecks, failure modes, security, and edge cases in the projects they claimed on their resume."
-        )
+        level_title = "SENIOR / LEAD ENGINEER (5+ Years Experience)"
+        diff_instruction = f"""
+TARGET CANDIDATE LEVEL: {level_title}
+DIFFICULTY SCORE: {diff_val}/5 (ADVANCED / SENIOR EXPERT)
+
+CRITICAL DIFFICULTY CONSTRAINTS:
+- Questions must be deeply technical, challenging, and architecture-focused.
+- Challenge the candidate on concurrency, high-throughput scaling, database bottlenecks, distributed caching, fault tolerance, security, and architectural trade-offs.
+"""
 
     # Format retrieved resume passages
     formatted_resume_blocks = []
@@ -180,10 +202,10 @@ def build_resume_jd_rag_prompt(
                 avoid_clause += f"  * {pq}\n"
 
     prompt = f"""
-You are an expert technical interviewer conducting a high-stakes job interview.
-You have the candidate's verified RESUME EXCERPTS and the hiring company's TARGET JOB DESCRIPTION.
+You are an expert technical interviewer conducting an interview calibrated specifically for a {level_title}.
+You have the candidate's verified RESUME EVIDENCE and the hiring company's TARGET JOB DESCRIPTION.
 
-=== TARGET JOB DESCRIPTION (WHAT THE ROLE REQUIRES) ===
+=== TARGET JOB DESCRIPTION ===
 {job_description[:3000]}
 === END JOB DESCRIPTION ===
 
@@ -191,15 +213,15 @@ You have the candidate's verified RESUME EXCERPTS and the hiring company's TARGE
 {resume_text}
 === END RESUME EVIDENCE ===
 
-Difficulty Level:
+=== DIFFICULTY & LEVEL SPECIFICATION ===
 {diff_instruction}
+=== END DIFFICULTY SPECIFICATION ===
 
 Interviewer Guidelines:
-- Generate EXACTLY {n} rigorous, realistic interview questions.
-- Every question MUST directly probe the candidate's real projects, tools, frameworks, and roles listed in the RESUME EVIDENCE as they relate to the JOB DESCRIPTION.
-- Do NOT ask generic textbook trivia (e.g. avoid 'What is a REST API?'). Instead, ask grounded experiential questions (e.g. 'In your E-Commerce project, you built a microservice with FastAPI and Redis; how did you handle cache invalidation during high traffic?').
-- Probe any technical gaps between what the candidate did on their resume and what the Job Description demands.
-- Keep questions clear, conversational, and answerable within 3-5 minutes.
+- Generate EXACTLY {n} questions tailored to the candidate's resume and job description.
+- Every question must be strictly calibrated to the {level_title} difficulty criteria defined above.
+- Relate questions to the tools, languages, and projects listed on the candidate's resume.
+- Keep questions clear, focused, and answerable within 2-4 minutes.
 {avoid_clause}
 - Each question must include target keywords the candidate should mention in their answer.
 - Type must be "reasoning".
@@ -207,7 +229,7 @@ Interviewer Guidelines:
 Return ONLY a valid JSON array of objects in this exact format:
 [
   {{
-    "text": "The detailed interview question",
+    "text": "The interview question text",
     "keywords": "keyword1,keyword2,keyword3",
     "difficulty": {diff_val},
     "type": "reasoning"
