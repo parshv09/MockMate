@@ -758,8 +758,16 @@ def generate_resume_jd_questions_groq(resume_text: str, job_description: str, n:
     r_snippet = (resume_text or "General background in software and technology.")[:4000]
     jd_snippet = (job_description or "General software engineering role.")[:4000]
     
+    diff_val = int(difficulty or 3)
+    if diff_val <= 2:
+        level_desc = "ENTRY-LEVEL / INTERN (0-1 years exp). Ask basic, conceptual, and beginner-friendly questions about what tools they used, simple definitions, and basic project contributions. DO NOT ask about distributed systems, microservices, scaling, or advanced architecture."
+    elif diff_val <= 4:
+        level_desc = "MID-LEVEL (2-4 years exp). Ask practical questions about API design, best practices, database queries, error handling, and implementation details."
+    else:
+        level_desc = "SENIOR / LEAD (5+ years exp). Ask advanced questions about system architecture, concurrency, scalability, trade-offs, and failure recovery."
+
     prompt = f"""
-You are an expert executive interviewer and senior hiring manager conducting a tailored technical interview.
+You are an expert technical interviewer conducting an interview calibrated for a {level_desc}.
 
 CANDIDATE RESUME HIGHLIGHTS:
 {r_snippet}
@@ -767,20 +775,22 @@ CANDIDATE RESUME HIGHLIGHTS:
 TARGET JOB DESCRIPTION:
 {jd_snippet}
 
+TARGET DIFFICULTY: Level {diff_val}/5 ({level_desc})
+
 TASK:
-Generate exactly {n} highly targeted interview questions specifically tailored to this candidate and job posting.
+Generate exactly {n} interview questions specifically tailored to this candidate's resume and job posting, strictly matching the target difficulty level.
 
 RULES:
-- Questions MUST directly evaluate the candidate's actual projects, skills, tools, or achievements mentioned in their resume against the specific requirements, tech stack, and responsibilities of the job description.
-- Include a mix of technical depth, experience validation, project architecture, and role-fit situational scenarios.
+- Questions MUST match the specified difficulty level: {level_desc}.
+- Questions must reference the candidate's actual projects and skills mentioned in their resume against the job description.
 - Do NOT output extra text or markdown wrappers. Output ONLY a valid JSON array of objects.
 
 JSON FORMAT:
 [
   {{
-    "text": "Based on your resume experience with [Tool/Project], how would you design [Requirement from Job Description]?",
+    "text": "The question text",
     "keywords": "skill1, skill2, concept",
-    "difficulty": {difficulty}
+    "difficulty": {diff_val}
   }}
 ]
 """

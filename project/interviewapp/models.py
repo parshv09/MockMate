@@ -33,8 +33,27 @@ class GeneratedQuestion(models.Model):
     def __str__(self):
         return f"{self.role} - {self.text[:70]}"
 
+
+class Resume(models.Model):
+    """Stores candidate resumes for reuse, extraction, and RAG vector indexing."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='resumes')
+    title = models.CharField(max_length=150, default="My Resume")
+    original_file = models.FileField(upload_to="resumes/", null=True, blank=True)
+    extracted_text = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.title}"
+
+
 class InterviewSession(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    resume = models.ForeignKey(Resume, on_delete=models.SET_NULL, null=True, blank=True, related_name='sessions')
+    job_description = models.TextField(blank=True, default='')
     role = models.CharField(max_length=50, default='general')
     job_role = models.CharField(max_length=100, default='Software Engineer')
     difficulty = models.IntegerField(default=3)

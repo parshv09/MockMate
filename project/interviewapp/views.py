@@ -8,7 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 from django import forms
 from django.conf import settings
-from .models import GeneratedQuestion, InterviewSession, Answer, UserProfile, SessionQuestion
+from .models import GeneratedQuestion, InterviewSession, Answer, UserProfile, SessionQuestion, Resume
 from .forms import StartSessionForm, AnswerForm
 from .nlp_utils import analyze_transcript, generate_expected_answer
 import hashlib
@@ -19,7 +19,7 @@ from .views_helpers import generate_question_stub  # if you keep stub in a helpe
 
 # RAG-augmented question generation (conditionally used)
 try:
-    from .rag import generate_questions_with_rag
+    from .rag import generate_questions_with_rag, generate_resume_jd_rag_questions, index_resume
     _rag_available = True
 except ImportError:
     _rag_available = False
@@ -364,15 +364,14 @@ def start_session(request):
 
             # 5) Create Answer placeholders in the exact order for this session
             # remove any existing answers for this session (defensive)
-# 5) Create Answer placeholders in the exact order for this session
             s.answers.all().delete()
             idx = 1
             for qid in created_question_ids:
                 qobj = GeneratedQuestion.objects.get(id=qid)
                 Answer.objects.create(session=s, question=qobj, index=idx)
+                SessionQuestion.objects.create(session=s, question=qobj, order=idx, asked=True)
                 idx += 1
 
-            # ✅ ADD THIS LINE (CRITICAL)
             s.total_questions = len(created_question_ids)
             s.current_index = 1   # first question index (matches Answer.index)
             s.save(update_fields=["total_questions", "current_index"])
@@ -390,7 +389,8 @@ def start_session(request):
                 initial_data['role'] = 'hr'
         form = StartSessionForm(initial=initial_data)
 
-    return render(request, 'start.html', {'form': form})
+    saved_resumes = Resume.objects.filter(user=request.user) if request.user.is_authenticated else []
+    return render(request, 'start.html', {'form': form, 'saved_resumes': saved_resumes})
 
 
 @login_required
@@ -505,6 +505,7 @@ def start_phase_practice(request):
     for qid in created_question_ids:
         qobj = GeneratedQuestion.objects.get(id=qid)
         Answer.objects.create(session=s, question=qobj, index=idx)
+        SessionQuestion.objects.create(session=s, question=qobj, order=idx, asked=True)
         idx += 1
 
     s.total_questions = len(created_question_ids)
@@ -1226,17 +1227,29 @@ def extract_text_from_resume_file(file_obj) -> str:
     text = ""
     
     if filename.endswith(".pdf"):
+        # Try pypdf (preferred, pure-Python)
         try:
             import pypdf
             reader = pypdf.PdfReader(file_obj)
-            pages_text = []
-            for page in reader.pages:
-                t = page.extract_text()
-                if t:
-                    pages_text.append(t)
+            pages_text = [page.extract_text() for page in reader.pages if page.extract_text()]
             text = "\n".join(pages_text)
+        except ImportError:
+            # Try PyPDF2 as fallback
+            try:
+                import PyPDF2
+                reader = PyPDF2.PdfReader(file_obj)
+                pages_text = [page.extract_text() for page in reader.pages if page.extract_text()]
+                text = "\n".join(pages_text)
+            except ImportError:
+                logging.getLogger(__name__).warning("Neither pypdf nor PyPDF2 is installed. Run: pip install pypdf")
+                file_obj.seek(0)
+                text = file_obj.read().decode('utf-8', errors='ignore')
+            except Exception as e:
+                logging.getLogger(__name__).warning("PyPDF2 extraction error: %s", e)
+                file_obj.seek(0)
+                text = file_obj.read().decode('utf-8', errors='ignore')
         except Exception as e:
-            logging.getLogger(__name__).exception("Failed to parse PDF resume with pypdf: %s", e)
+            logging.getLogger(__name__).warning("pypdf extraction error: %s", e)
             file_obj.seek(0)
             text = file_obj.read().decode('utf-8', errors='ignore')
     else:
@@ -1251,24 +1264,48 @@ def extract_text_from_resume_file(file_obj) -> str:
 @login_required
 def start_resume_jd_session(request):
     """
-    Create and launch a tailored Mock Interview session based on uploaded Resume & Job Description.
+    Create and launch a tailored Mock Interview session based on uploaded/saved Resume & Job Description via RAG.
     """
     if request.method != 'POST':
         return redirect('interviewapp:start_session')
 
+    selected_resume_id = request.POST.get('selected_resume_id', '').strip()
     resume_file = request.FILES.get('resume_file')
+    resume_title = request.POST.get('resume_title', '').strip()
     pasted_resume = request.POST.get('resume_text', '').strip()
     job_description = request.POST.get('job_description', '').strip()
     difficulty = int(request.POST.get('difficulty', '3'))
     n = int(request.POST.get('n_questions', '5'))
 
-    # Extract resume text
-    extracted_resume_text = extract_text_from_resume_file(resume_file) if resume_file else ""
-    full_resume_text = (extracted_resume_text + "\n" + pasted_resume).strip()
+    resume_obj = None
 
-    if not full_resume_text and not job_description:
-        messages.error(request, "Please upload a resume file, paste your resume text, or provide a job description.")
-        return redirect('interviewapp:start_session')
+    # Option A: User picked an existing saved resume
+    if selected_resume_id and selected_resume_id.isdigit():
+        resume_obj = Resume.objects.filter(id=int(selected_resume_id), user=request.user).first()
+
+    # Option B: User uploaded a new resume file or pasted new text
+    if not resume_obj:
+        extracted_resume_text = extract_text_from_resume_file(resume_file) if resume_file else ""
+        full_resume_text = (extracted_resume_text + "\n" + pasted_resume).strip()
+
+        if not full_resume_text and not job_description:
+            messages.error(request, "Please select a saved resume, upload a resume file, or provide a job description.")
+            return redirect('interviewapp:start_session')
+
+        if full_resume_text:
+            title = resume_title or (resume_file.name if resume_file else "Uploaded Resume")
+            resume_obj = Resume.objects.create(
+                user=request.user,
+                title=title[:150],
+                original_file=resume_file if resume_file else None,
+                extracted_text=full_resume_text
+            )
+            # Index new resume vectors
+            try:
+                if _rag_available:
+                    index_resume(resume_obj)
+            except Exception as e:
+                logger.exception("Failed to index resume #%s into vector store: %s", resume_obj.id, e)
 
     job_role = "Resume & JD Specific Match"
     if job_description:
@@ -1276,9 +1313,11 @@ def start_resume_jd_session(request):
         if lines:
             job_role = f"Job Match: {lines[0][:45]}"
 
-    # Create interview session
+    # Create interview session with resume & JD linkage
     s = InterviewSession.objects.create(
         user=request.user,
+        resume=resume_obj,
+        job_description=job_description,
         total_questions=n,
         role='tech',
         job_role=job_role,
@@ -1287,15 +1326,34 @@ def start_resume_jd_session(request):
         current_index=0
     )
 
+    # Fetch up to 15 unique question texts previously asked to the user
+    prev_questions = list(SessionQuestion.objects.filter(
+        session__user=request.user,
+        session__role='tech'
+    ).order_by('-id').values_list('question__text', flat=True).distinct()[:15])
+
+    rag_enabled = getattr(settings, 'RAG_ENABLED', True) and _rag_available and resume_obj is not None
+    question_source = "rag_resume" if rag_enabled else "llm"
+
     try:
-        llm_questions = generate_resume_jd_questions_groq(
-            resume_text=full_resume_text,
-            job_description=job_description,
-            n=n,
-            difficulty=difficulty
-        )
+        if rag_enabled:
+            llm_questions = generate_resume_jd_rag_questions(
+                resume_obj=resume_obj,
+                job_description=job_description,
+                n=n,
+                difficulty=difficulty,
+                previous_questions=prev_questions,
+            )
+        else:
+            fallback_text = resume_obj.extracted_text if resume_obj else full_resume_text
+            llm_questions = generate_resume_jd_questions_groq(
+                resume_text=fallback_text,
+                job_description=job_description,
+                n=n,
+                difficulty=difficulty
+            )
     except Exception as e:
-        logger.exception("Resume/JD question generation error: %s", e)
+        logger.exception("Resume/JD question generation error (rag=%s): %s", rag_enabled, e)
         llm_questions = []
 
     created_question_ids = []
@@ -1315,7 +1373,7 @@ def start_resume_jd_session(request):
                 "difficulty": qobj.get("difficulty", difficulty),
                 "text": text,
                 "keywords": qobj.get("keywords", ""),
-                "source": "llm"
+                "source": question_source
             }
         )
         created_question_ids.append(qrow.id)
@@ -1348,11 +1406,15 @@ def start_resume_jd_session(request):
     for qid in created_question_ids:
         qobj = GeneratedQuestion.objects.get(id=qid)
         Answer.objects.create(session=s, question=qobj, index=idx)
+        SessionQuestion.objects.create(session=s, question=qobj, order=idx, asked=True)
         idx += 1
 
     s.total_questions = len(created_question_ids)
     s.current_index = 1
     s.save(update_fields=["total_questions", "current_index"])
+
+    messages.success(request, f"Launched Resume & Job Description Tailored Session!")
+    return redirect('interviewapp:next_question', session_id=s.id)
 
     messages.success(request, f"Launched Resume & Job Description Tailored Session!")
     return redirect('interviewapp:next_question', session_id=s.id)
