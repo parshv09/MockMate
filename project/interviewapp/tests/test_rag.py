@@ -372,3 +372,151 @@ class TestResumeRAG(TestCase):
         self.assertIn("FastAPI", prompt)
         self.assertIn("fintech", prompt)
 
+
+class TestResumeGroundedEvaluation(TestCase):
+    """Test suite for Resume-grounded answer evaluation and verification."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="groundingtester", password="password123")
+        self.resume = Resume.objects.create(
+            user=self.user,
+            title="Full-Stack Developer Resume",
+            extracted_text="""
+            Alice Smith - Software Engineer
+            Projects:
+            1. Distributed Cache System: Designed Redis distributed caching reducing database load by 60%.
+            2. Payment Gateway: Integrated Stripe and PayPal webhooks with idempotency keys in FastAPI.
+            Skills: Python, FastAPI, Django, Redis, PostgreSQL, Docker.
+            """,
+        )
+        self.question = GeneratedQuestion.objects.create(
+            role="tech",
+            difficulty=3,
+            text="How did you implement caching in your project, and what performance benefits did you observe?",
+            keywords="caching, redis, latency, database",
+            source="rag_resume",
+            signature="test_grounding_sig_1",
+        )
+        self.session = InterviewSession.objects.create(
+            user=self.user,
+            resume=self.resume,
+            job_description="Seeking a backend engineer with Redis and FastAPI experience.",
+            role="tech",
+            difficulty=3,
+            total_questions=1,
+        )
+        self.answer = Answer.objects.create(
+            session=self.session,
+            question=self.question,
+            index=1,
+            answer_text="We introduced Redis cache ahead of our PostgreSQL database. By storing active session tokens and query results, we dropped database load by 60%.",
+        )
+
+    @patch("interviewapp.rag.resume_rag.get_embedding_model")
+    def test_retrieve_resume_context_for_answer(self, mock_em_getter):
+        from interviewapp.rag.resume_rag import index_resume, retrieve_resume_context_for_answer
+
+        mock_em = MagicMock()
+        mock_em.is_available.return_value = True
+        mock_em.embed_texts.side_effect = lambda texts: [[0.1] * 384 for _ in texts]
+        mock_em.embed_query.return_value = [0.1] * 384
+        mock_em_getter.return_value = mock_em
+
+        index_resume(self.resume)
+
+        chunks = retrieve_resume_context_for_answer(
+            resume_obj=self.resume,
+            question_text=self.question.text,
+            answer_text=self.answer.answer_text,
+            top_k=2,
+        )
+        self.assertTrue(len(chunks) > 0)
+        self.assertIn("Redis", chunks[0]["text"])
+
+    @patch("interviewapp.nlp_utils._call_groq_chat")
+    def test_evaluate_resume_grounded_answer(self, mock_groq_chat):
+        import json
+        from interviewapp.nlp_utils import evaluate_resume_grounded_answer
+
+        mock_groq_chat.return_value = json.dumps({
+            "correctness_score": 42,
+            "consistency_score": 19,
+            "alignment_level": "high",
+            "supported_claims": ["Verified Redis caching usage reducing database load by 60%"],
+            "contradictions": [],
+            "missed_resume_points": ["Omitted mention of FastAPI integration"],
+        })
+
+        chunks = [{"text": self.resume.extracted_text}]
+        res = evaluate_resume_grounded_answer(
+            question_text=self.question.text,
+            answer_text=self.answer.answer_text,
+            keywords_list=["redis", "caching"],
+            resume_chunks=chunks,
+            job_description=self.session.job_description,
+        )
+
+        self.assertIsNotNone(res)
+        self.assertEqual(res["correctness_score"], 42)
+        self.assertEqual(res["consistency_score"], 19)
+        self.assertEqual(res["alignment_level"], "high")
+        self.assertEqual(len(res["supported_claims"]), 1)
+        self.assertEqual(len(res["missed_resume_points"]), 1)
+
+    @patch("interviewapp.nlp_utils.generate_ai_answer_feedback")
+    @patch("interviewapp.nlp_utils.evaluate_resume_grounded_answer")
+    @patch("interviewapp.rag.resume_rag.retrieve_resume_context_for_answer")
+    def test_analyze_transcript_with_resume_scoring_split(self, mock_retrieve, mock_eval, mock_feedback):
+        from interviewapp.nlp_utils import analyze_transcript
+
+        mock_retrieve.return_value = [{"text": "Redis caching excerpt"}]
+        mock_eval.return_value = {
+            "correctness_score": 40,
+            "consistency_score": 18,
+            "alignment_level": "high",
+            "supported_claims": ["Verified Redis caching"],
+            "contradictions": [],
+            "missed_resume_points": [],
+            "analyzed_chunk": "Redis caching excerpt",
+        }
+        mock_feedback.return_value = {
+            "feedback": "Strong answer aligning with your resume.",
+            "improvement_tips": ["Mention the latency metrics next time."]
+        }
+
+        # Candidate answer: 24 words, 0 fillers
+        # Length score: min(15, max(3, 24 // 2)) = 12
+        # Fluency score: 20 - (0 * 4) = 20
+        # Expected Total: 40 + 18 + 12 + 20 = 90
+        res = analyze_transcript(
+            text=self.answer.answer_text,
+            question=self.question,
+            resume=self.resume,
+            job_description=self.session.job_description,
+        )
+
+        self.assertIsNotNone(res.get("resume_grounding"))
+        self.assertEqual(res["score"], 90)
+        self.assertEqual(res["resume_grounding"]["consistency_score"], 18)
+
+    @patch("interviewapp.nlp_utils.generate_ai_answer_feedback")
+    @patch("interviewapp.nlp_utils.evaluate_semantic_correctness")
+    def test_analyze_transcript_non_resume_regression(self, mock_correctness, mock_feedback):
+        from interviewapp.nlp_utils import analyze_transcript
+
+        mock_correctness.return_value = 60  # out of 65
+        mock_feedback.return_value = {"feedback": "Good job", "improvement_tips": []}
+
+        # Without resume -> 65 + 15 + 20 formula
+        # Length score: min(15, max(3, 24 // 2)) = 12
+        # Fluency score: 20
+        # Total: min(100, 60 + 12 + 20) = 92
+        res = analyze_transcript(
+            text=self.answer.answer_text,
+            question=self.question,
+            resume=None,
+        )
+
+        self.assertIsNone(res.get("resume_grounding"))
+        self.assertEqual(res["score"], 92)
+

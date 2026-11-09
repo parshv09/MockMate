@@ -573,12 +573,18 @@ def submit_answer(request, session_id):
             transcribed = transcribe_audio(ans.audio_file.path)
             ans.answer_text = transcribed or "[Voice answer could not be transcribed]"
 
-        # 🧠 Analyze answer
-        result = analyze_transcript(ans.answer_text, ans.question)
+        # 🧠 Analyze answer (with optional resume grounding)
+        result = analyze_transcript(
+            text=ans.answer_text,
+            question=ans.question,
+            resume=session.resume,
+            job_description=session.job_description,
+        )
 
         ans.score = result.get('score')
         ans.feedback = result.get('feedback', '')
         ans.improvement_tips = result.get('improvement_tips', [])
+        ans.resume_grounding = result.get('resume_grounding')
         ans.processed = True
 
         # ✅ Final save once
@@ -587,6 +593,7 @@ def submit_answer(request, session_id):
             'score',
             'feedback',
             'improvement_tips',
+            'resume_grounding',
             'processed'
         ])
 
@@ -830,6 +837,38 @@ def session_summary(request, session_id):
     #         movement_pct=video_summary["movement_pct"]
     #     )
 
+    # Calculate resume grounding session-level summary if session has resume
+    resume_summary = None
+    if session.resume:
+        grounded_answers = [a for a in answers if a.resume_grounding]
+        if grounded_answers:
+            consistency_scores = [
+                a.resume_grounding.get("consistency_score", 0)
+                for a in grounded_answers
+                if isinstance(a.resume_grounding, dict) and "consistency_score" in a.resume_grounding
+            ]
+            avg_consistency = (sum(consistency_scores) / len(consistency_scores)) if consistency_scores else 0
+            # Consistency percentage out of max 20
+            consistency_pct = int((avg_consistency / 20) * 100)
+            
+            all_supported = []
+            all_contradictions = []
+            all_missed = []
+            for a in grounded_answers:
+                rg = a.resume_grounding or {}
+                all_supported.extend(rg.get("supported_claims", []))
+                all_contradictions.extend(rg.get("contradictions", []))
+                all_missed.extend(rg.get("missed_resume_points", []))
+
+            resume_summary = {
+                "resume_title": session.resume.title,
+                "avg_consistency_score": round(avg_consistency, 1),
+                "consistency_pct": consistency_pct,
+                "supported_count": len(all_supported),
+                "contradictions_count": len(all_contradictions),
+                "missed_count": len(all_missed),
+            }
+
     # Render the template with both LLM suggestions and the simple parsed lists
     return render(request, 'summary.html', {
         'session': session,
@@ -843,7 +882,8 @@ def session_summary(request, session_id):
         'overall_tip': suggestions.get('overall_tip', ''),
         'resources': suggestions.get('resources', []),
         "video_summary": video_summary,
-        "video_ai_feedback": video_ai_feedback
+        "video_ai_feedback": video_ai_feedback,
+        "resume_summary": resume_summary,
     })
 
 class SimpleStartForm(forms.Form):
@@ -1058,6 +1098,26 @@ def download_report(request, session_id):
         if a.expected_answer:
             q_container.append(Paragraph("EXPECTED ANSWER (MODEL SOLUTION)", label_style))
             q_container.append(Paragraph(a.expected_answer, ParagraphStyle('Expected', parent=body_style, leftIndent=10, textColor=colors.HexColor("#B45309"))))
+            q_container.append(Spacer(1, 10))
+
+        # Resume Grounding Analysis Block (if present)
+        rg = getattr(a, "resume_grounding", None)
+        if rg and isinstance(rg, dict):
+            c_score = rg.get("consistency_score", 0)
+            align = str(rg.get("alignment_level", "partial")).upper()
+            q_container.append(Paragraph(f"RESUME EVIDENCE & CONSISTENCY: {align} ({c_score}/20)", label_style))
+            
+            rg_notes = []
+            for supp in rg.get("supported_claims", []):
+                rg_notes.append(f"<font color='#059669'>[VERIFIED]</font> {supp}")
+            for missed in rg.get("missed_resume_points", []):
+                rg_notes.append(f"<font color='#D97706'>[MISSED]</font> {missed}")
+            for contra in rg.get("contradictions", []):
+                rg_notes.append(f"<font color='#DC2626'>[DISCREPANCY]</font> {contra}")
+
+            if rg_notes:
+                for note in rg_notes:
+                    q_container.append(Paragraph(note, ParagraphStyle('rg_item', parent=body_style, leftIndent=10, fontSize=9)))
             q_container.append(Spacer(1, 10))
         
         # AI Feedback Block
