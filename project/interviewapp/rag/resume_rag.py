@@ -134,6 +134,63 @@ def retrieve_resume_context_for_jd(
     return results
 
 
+def retrieve_resume_context_for_answer(
+    resume_obj,
+    question_text: str,
+    answer_text: str,
+    top_k: int = 3,
+) -> List[Dict]:
+    """
+    Retrieves the most relevant passages from the candidate's resume that match
+    or should substantiate the claims made in their interview answer to a question.
+
+    Args:
+        resume_obj: Resume model instance.
+        question_text: The interview question asked.
+        answer_text: The candidate's spoken/submitted answer.
+        top_k: Number of relevant chunks to retrieve.
+
+    Returns:
+        List of candidate resume chunk dictionaries with text and metadata.
+    """
+    if not resume_obj:
+        return []
+
+    try:
+        store = get_resume_vector_store(resume_obj.id)
+        if store.count() == 0:
+            logger.info("Resume #%s index empty; triggering automatic indexing", resume_obj.id)
+            count = index_resume(resume_obj)
+            if count == 0:
+                return []
+
+        embed_model = get_embedding_model()
+        if not embed_model.is_available():
+            return []
+
+        # Construct query combining the question context and the key claims of the answer
+        q_clean = " ".join((question_text or "").split())
+        ans_clean = " ".join((answer_text or "").split())
+        query_text = f"{q_clean} {ans_clean[:600]}".strip()
+        if not query_text:
+            return []
+
+        query_vec = embed_model.embed_query(query_text[:1000])
+        if not query_vec:
+            return []
+
+        results = store.query(query_embedding=query_vec, top_k=top_k)
+        logger.info(
+            "Retrieved %d resume chunks for Resume #%s to evaluate answer",
+            len(results),
+            resume_obj.id,
+        )
+        return results
+    except Exception as exc:
+        logger.exception("Error retrieving resume context for answer (Resume #%s): %s", getattr(resume_obj, 'id', None), exc)
+        return []
+
+
 def build_resume_jd_rag_prompt(
     resume_chunks: List[Dict],
     job_description: str,

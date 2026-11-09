@@ -98,6 +98,7 @@ class Answer(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     improvement_tips = models.JSONField(null=True, blank=True)
     expected_answer = models.TextField(blank=True, null=True)
+    resume_grounding = models.JSONField(null=True, blank=True)
     class Meta:
         unique_together = ('session','index')
 
