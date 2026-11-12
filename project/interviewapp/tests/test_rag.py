@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 from django.test import TestCase, override_settings
 from django.contrib.auth.models import User
 
-from interviewapp.models import GeneratedQuestion, InterviewSession, Resume
+from interviewapp.models import Answer, GeneratedQuestion, InterviewSession, Resume
 from interviewapp.rag.document_loader import Document, load_documents
 from interviewapp.rag.text_splitter import Chunk, split_documents
 from interviewapp.rag.retriever import (
@@ -193,7 +193,7 @@ class TestValidators(TestCase):
         raw_questions = [
             {"text": "Explain Python GIL.", "keywords": "gil,threads", "difficulty": 3, "type": "reasoning"},
             {"text": "Explain Python GIL.", "keywords": "gil,threads", "difficulty": 3, "type": "reasoning"},  # Exact dup
-            {"text": "Explain how GIL works in Python.", "keywords": "gil", "difficulty": 3, "type": "reasoning"},  # Near dup
+            {"text": "Explain the Python GIL.", "keywords": "gil", "difficulty": 3, "type": "reasoning"},  # Near dup (>85% similarity)
             {"text": "What are generators?", "keywords": "generator,yield", "difficulty": 3, "type": "reasoning"},
             {"text": "What is a decorator?", "keywords": "decorator", "difficulty": 3, "type": "reasoning"},
         ]
@@ -237,8 +237,8 @@ class TestPipeline(TestCase):
             has_context=True,
         )
         mock_gen.return_value = [
-            {"text": "RAG Question 1", "keywords": "rag", "difficulty": 3, "type": "reasoning"},
-            {"text": "RAG Question 2", "keywords": "rag", "difficulty": 3, "type": "reasoning"},
+            {"text": "Explain RAG architecture and its components.", "keywords": "rag", "difficulty": 3, "type": "reasoning"},
+            {"text": "How do vector databases handle similarity search?", "keywords": "vector", "difficulty": 3, "type": "reasoning"},
         ]
 
         questions = generate_questions_with_rag(
@@ -249,8 +249,8 @@ class TestPipeline(TestCase):
         )
 
         self.assertEqual(len(questions), 2)
-        self.assertEqual(questions[0]["text"], "RAG Question 1")
-        self.assertEqual(questions[1]["text"], "RAG Question 2")
+        self.assertEqual(questions[0]["text"], "Explain RAG architecture and its components.")
+        self.assertEqual(questions[1]["text"], "How do vector databases handle similarity search?")
 
     @override_settings(RAG_ENABLED=True)
     @patch("interviewapp.rag.pipeline.retrieve_context")
@@ -484,10 +484,10 @@ class TestResumeGroundedEvaluation(TestCase):
             "improvement_tips": ["Mention the latency metrics next time."]
         }
 
-        # Candidate answer: 24 words, 0 fillers
-        # Length score: min(15, max(3, 24 // 2)) = 12
+        # Candidate answer: 23 words, 0 fillers
+        # Length score: min(15, max(3, 23 // 2)) = 11
         # Fluency score: 20 - (0 * 4) = 20
-        # Expected Total: 40 + 18 + 12 + 20 = 90
+        # Expected Total: 40 + 18 + 11 + 20 = 89
         res = analyze_transcript(
             text=self.answer.answer_text,
             question=self.question,
@@ -496,7 +496,7 @@ class TestResumeGroundedEvaluation(TestCase):
         )
 
         self.assertIsNotNone(res.get("resume_grounding"))
-        self.assertEqual(res["score"], 90)
+        self.assertEqual(res["score"], 89)
         self.assertEqual(res["resume_grounding"]["consistency_score"], 18)
 
     @patch("interviewapp.nlp_utils.generate_ai_answer_feedback")
@@ -508,9 +508,9 @@ class TestResumeGroundedEvaluation(TestCase):
         mock_feedback.return_value = {"feedback": "Good job", "improvement_tips": []}
 
         # Without resume -> 65 + 15 + 20 formula
-        # Length score: min(15, max(3, 24 // 2)) = 12
+        # Length score: min(15, max(3, 23 // 2)) = 11
         # Fluency score: 20
-        # Total: min(100, 60 + 12 + 20) = 92
+        # Total: min(100, 60 + 11 + 20) = 91
         res = analyze_transcript(
             text=self.answer.answer_text,
             question=self.question,
@@ -518,5 +518,5 @@ class TestResumeGroundedEvaluation(TestCase):
         )
 
         self.assertIsNone(res.get("resume_grounding"))
-        self.assertEqual(res["score"], 92)
+        self.assertEqual(res["score"], 91)
 

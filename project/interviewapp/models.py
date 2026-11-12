@@ -86,6 +86,13 @@ class InterviewSession(models.Model):
         return f"Session {self.id} - {self.role}"
     
 class Answer(models.Model):
+    PROCESSING_STATE_CHOICES = [
+        ("unclaimed", "Unclaimed"),
+        ("processing", "Processing"),
+        ("processed", "Processed"),
+        ("failed", "Failed"),
+    ]
+
     session = models.ForeignKey(InterviewSession, on_delete=models.CASCADE, related_name='answers')
     question = models.ForeignKey(GeneratedQuestion, on_delete=models.SET_NULL, null=True)
     index = models.IntegerField()
@@ -95,12 +102,37 @@ class Answer(models.Model):
     score = models.FloatField(null=True, blank=True)
     feedback = models.TextField(blank=True)
     processed = models.BooleanField(default=False)
+    processing_state = models.CharField(
+        max_length=20,
+        choices=PROCESSING_STATE_CHOICES,
+        default="unclaimed",
+        db_index=True,
+    )
+    claim_token = models.CharField(max_length=64, blank=True, default="")
+    claimed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     improvement_tips = models.JSONField(null=True, blank=True)
     expected_answer = models.TextField(blank=True, null=True)
     resume_grounding = models.JSONField(null=True, blank=True)
+
     class Meta:
         unique_together = ('session','index')
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        if self.processed and self.processing_state != "processed":
+            self.processing_state = "processed"
+            self.claim_token = ""
+            self.claimed_at = None
+            if update_fields is not None:
+                kwargs["update_fields"] = list(
+                    set(update_fields) | {"processing_state", "claim_token", "claimed_at"}
+                )
+        elif not self.processed and self.processing_state == "processed":
+            self.processing_state = "unclaimed"
+            if update_fields is not None:
+                kwargs["update_fields"] = list(set(update_fields) | {"processing_state"})
+        super().save(*args, **kwargs)
 
 class SessionQuestion(models.Model):
     """Links questions to specific sessions to prevent repeats"""

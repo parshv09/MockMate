@@ -36,6 +36,67 @@ def get_resume_vector_store(resume_id: int) -> VectorStore:
     return VectorStore(persist_dir=resume_index_dir, collection_name=f"resume_{resume_id}")
 
 
+def delete_resume_vector_store(resume_id: int) -> bool:
+    """
+    Safely deletes the dedicated vector store files and collection for a specific resume.
+
+    Requirements enforced:
+    - Only deletes the target resume's index directory: rag_index/resumes/resume_{resume_id}.
+    - Validates path containment to prevent path traversal outside the resumes directory.
+    - Handles an already-missing index gracefully without error.
+    - Does not affect shared collections or other resumes' directories.
+
+    Returns:
+        True if successfully cleaned up or already absent.
+    """
+    if not resume_id or not isinstance(resume_id, int) or resume_id <= 0:
+        logger.warning("delete_resume_vector_store called with invalid resume_id: %s", resume_id)
+        return False
+
+    base_dir = getattr(settings, "RAG_INDEX_DIR", settings.BASE_DIR / "rag_index")
+    resumes_dir = (Path(base_dir) / "resumes").resolve()
+    target_dir = (resumes_dir / f"resume_{resume_id}").resolve()
+
+    # Safety containment check: ensure target_dir is strictly inside resumes_dir
+    try:
+        target_dir.relative_to(resumes_dir)
+    except ValueError:
+        logger.error(
+            "Security violation: target vector store path %s is outside resumes directory %s",
+            target_dir,
+            resumes_dir,
+        )
+        return False
+
+    # 1. Clear in-memory / collection state if available
+    try:
+        vstore = get_resume_vector_store(resume_id)
+        vstore.clear()
+    except Exception as exc:
+        logger.warning(
+            "Non-fatal warning clearing vector store state for Resume #%s: %s",
+            resume_id,
+            exc,
+        )
+
+    # 2. Remove dedicated disk directory if present
+    if target_dir.exists():
+        try:
+            import shutil
+            shutil.rmtree(target_dir)
+            logger.info("Deleted vector store directory for Resume #%s: %s", resume_id, target_dir)
+        except Exception as exc:
+            logger.exception("Failed to delete vector store directory for Resume #%s: %s", resume_id, exc)
+            return False
+
+    # 3. Verify directory is truly absent from disk
+    if target_dir.exists():
+        logger.error("Vector store directory %s still exists after deletion attempt", target_dir)
+        return False
+
+    return True
+
+
 def index_resume(resume_obj) -> int:
     """
     Chunks and embeds a candidate's resume text, storing it in a persistent vector index.
