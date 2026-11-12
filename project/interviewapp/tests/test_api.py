@@ -2348,6 +2348,492 @@ class AnswerAndCompletionAPITests(APITestCase):
         self.assertEqual(self.ans2.claim_token, "")
 
 
+class VideoProcessingAPITests(APITestCase):
+    """Tests for Phase 4C Video Processing APIs (/api/v1/sessions/<pk>/video/*)."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="video_candidate",
+            email="video_candidate@example.com",
+            password="StrongPassword123!",
+        )
+        self.other_user = User.objects.create_user(
+            username="other_video_candidate",
+            email="other_video@example.com",
+            password="StrongPassword123!",
+        )
+        self.session = InterviewSession.objects.create(
+            user=self.user,
+            role="backend",
+            job_role="Backend Engineer",
+        )
+        self.other_session = InterviewSession.objects.create(
+            user=self.other_user,
+            role="data_science",
+            job_role="Data Scientist",
+        )
+        self.frame_url = reverse("api_v1:session_video_frame", kwargs={"pk": self.session.id})
+        self.metrics_url = reverse("api_v1:session_video_metrics", kwargs={"pk": self.session.id})
+        self.finalize_url = reverse("api_v1:session_video_finalize", kwargs={"pk": self.session.id})
+        self.end_url = reverse("api_v1:session_end", kwargs={"pk": self.session.id})
+
+    def _authenticate(self, user=None):
+        target = user or self.user
+        refresh = RefreshToken.for_user(target)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
+
+    @staticmethod
+    def _make_valid_png_bytes():
+        import io
+        from PIL import Image
+
+        buf = io.BytesIO()
+        img = Image.new("RGB", (2, 2), color=(10, 20, 30))
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+
+    def _make_frame_file(self, name="frame.png", content=None, content_type="image/png"):
+        data = content if content is not None else self._make_valid_png_bytes()
+        return SimpleUploadedFile(name, data, content_type=content_type)
+
+    def test_unauthenticated_access_rejected(self):
+        self.client.credentials()
+        self.assertEqual(self.client.post(self.frame_url, {}).status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(self.client.get(self.metrics_url).status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(self.client.post(self.finalize_url, {}).status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_cross_user_access_rejected(self):
+        self._authenticate(self.other_user)
+        frame = self._make_frame_file()
+        self.assertEqual(
+            self.client.post(self.frame_url, {"frame": frame}, format="multipart").status_code,
+            status.HTTP_404_NOT_FOUND,
+        )
+        self.assertEqual(self.client.get(self.metrics_url).status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(self.client.post(self.finalize_url, {}).status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("interviewapp.services.video_service.get_redis_client", return_value=None)
+    @patch(
+        "interviewapp.services.video_service.analyze_eye_contact_and_head",
+        return_value={"eye_contact": True, "head_movement": False},
+    )
+    @patch("interviewapp.services.video_service.count_faces", return_value=1)
+    def test_valid_video_frame_updates_stats(self, mock_faces, mock_behavior, _mock_redis):
+        self._authenticate()
+        res = self.client.post(
+            self.frame_url,
+            {"frame": self._make_frame_file(), "frame_id": "frame-001"},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["status"], "ok")
+        self.assertEqual(res.data["session_id"], self.session.id)
+        self.assertEqual(res.data["faces"], 1)
+        self.assertTrue(res.data["eye_contact"])
+        self.assertFalse(res.data["head_movement"])
+        mock_faces.assert_called_once()
+        mock_behavior.assert_called_once()
+
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.video_stats_json["total_frames"], 1)
+        self.assertEqual(self.session.video_stats_json["face_present_frames"], 1)
+        self.assertEqual(self.session.video_stats_json["eye_contact_frames"], 1)
+
+    @patch("interviewapp.services.video_service.count_faces")
+    def test_invalid_or_malformed_frame_rejected_with_400(self, mock_faces):
+        self._authenticate()
+
+        # Corrupt image bytes with valid extension/content-type
+        bad_img = self._make_frame_file(name="bad.png", content=b"not-a-real-image", content_type="image/png")
+        res_bad = self.client.post(self.frame_url, {"frame": bad_img}, format="multipart")
+        self.assertEqual(res_bad.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Unsupported extension
+        bad_ext = self._make_frame_file(name="frame.txt", content=self._make_valid_png_bytes(), content_type="text/plain")
+        res_ext = self.client.post(self.frame_url, {"frame": bad_ext}, format="multipart")
+        self.assertEqual(res_ext.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Empty file
+        empty_file = self._make_frame_file(name="empty.png", content=b"", content_type="image/png")
+        res_empty = self.client.post(self.frame_url, {"frame": empty_file}, format="multipart")
+        self.assertEqual(res_empty.status_code, status.HTTP_400_BAD_REQUEST)
+
+        mock_faces.assert_not_called()
+
+    @patch("interviewapp.services.video_service.count_faces")
+    def test_oversized_frame_rejected_with_400(self, mock_faces):
+        self._authenticate()
+        oversized = self._make_frame_file(
+            name="huge.png",
+            content=b"\x89PNG\r\n\x1a\n" + (b"0" * (5 * 1024 * 1024 + 10)),
+            content_type="image/png",
+        )
+        res = self.client.post(self.frame_url, {"frame": oversized}, format="multipart")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        mock_faces.assert_not_called()
+
+    @patch("interviewapp.services.video_service.get_redis_client", return_value=None)
+    @patch(
+        "interviewapp.services.video_service.analyze_eye_contact_and_head",
+        return_value={"eye_contact": True, "head_movement": True},
+    )
+    @patch("interviewapp.services.video_service.count_faces", return_value=1)
+    def test_duplicate_frame_id_deduplicated(self, _mock_faces, _mock_behavior, _mock_redis):
+        self._authenticate()
+        res1 = self.client.post(
+            self.frame_url,
+            {"frame": self._make_frame_file(), "frame_id": "dup-1"},
+            format="multipart",
+        )
+        res2 = self.client.post(
+            self.frame_url,
+            {"frame": self._make_frame_file(), "frame_id": "dup-1"},
+            format="multipart",
+        )
+        self.assertEqual(res1.status_code, status.HTTP_200_OK)
+        self.assertEqual(res2.status_code, status.HTTP_200_OK)
+
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.video_stats_json["total_frames"], 1)
+
+    @patch("interviewapp.services.video_service.get_redis_client", return_value=None)
+    def test_metrics_retrieval_sanitizes_internal_keys(self, _mock_redis):
+        self._authenticate()
+        self.session.video_stats_json = {
+            "total_frames": 4,
+            "face_present_frames": 3,
+            "eye_contact_frames": 2,
+            "head_movement_frames": 1,
+            "_recent_frame_ids": ["f1", "f2"],
+            "_finalized": False,
+        }
+        self.session.save(update_fields=["video_stats_json"])
+
+        res = self.client.get(self.metrics_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["session_id"], self.session.id)
+        self.assertTrue(res.data["has_video_data"])
+        self.assertFalse(res.data["is_finalized"])
+        raw = res.data["raw_stats"]
+        self.assertEqual(raw["total_frames"], 4)
+        self.assertNotIn("_recent_frame_ids", raw)
+        self.assertNotIn("_finalized", raw)
+        self.assertNotIn("video_stats", str(res.data))
+
+    @patch("interviewapp.services.video_service.get_redis_client", return_value=None)
+    @patch(
+        "interviewapp.services.video_service.generate_video_behavior_feedback",
+        return_value={"strengths": ["Good eye contact"], "improvements": ["Reduce movement"]},
+    )
+    def test_finalization_computes_summary_and_is_idempotent(self, mock_ai_feedback, _mock_redis):
+        self._authenticate()
+        self.session.video_stats_json = {
+            "total_frames": 10,
+            "face_present_frames": 9,
+            "eye_contact_frames": 8,
+            "head_movement_frames": 2,
+        }
+        self.session.save(update_fields=["video_stats_json"])
+
+        res1 = self.client.post(self.finalize_url, {}, format="json")
+        self.assertEqual(res1.status_code, status.HTTP_200_OK)
+        self.assertTrue(res1.data["is_finalized"])
+        self.assertIsNotNone(res1.data["video_summary"])
+        self.assertEqual(res1.data["video_ai_feedback"]["strengths"], ["Good eye contact"])
+        mock_ai_feedback.assert_called_once()
+
+        # Second call should return cached results without invoking Groq again
+        res2 = self.client.post(self.finalize_url, {}, format="json")
+        self.assertEqual(res2.status_code, status.HTTP_200_OK)
+        self.assertEqual(res2.data["video_summary"], res1.data["video_summary"])
+        mock_ai_feedback.assert_called_once()
+
+    @patch("interviewapp.services.video_service.get_redis_client", return_value=None)
+    def test_frame_submission_after_finalization_rejected_db_mode(self, _mock_redis):
+        self._authenticate()
+        self.session.video_stats_json = {
+            "total_frames": 2,
+            "face_present_frames": 2,
+            "eye_contact_frames": 2,
+            "head_movement_frames": 0,
+            "_finalized": True,
+        }
+        self.session.save(update_fields=["video_stats_json"])
+
+        res = self.client.post(
+            self.frame_url,
+            {"frame": self._make_frame_file()},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("finalized", res.data["detail"].lower())
+
+    def test_frame_submission_after_finalization_rejected_redis_mode(self):
+        from unittest.mock import MagicMock
+
+        mock_redis = MagicMock()
+        mock_redis.eval.return_value = ["err", "SESSION_FINALIZED"]
+
+        self._authenticate()
+        with patch("interviewapp.services.video_service.get_redis_client", return_value=mock_redis), patch(
+            "interviewapp.services.video_service.count_faces", return_value=1
+        ), patch(
+            "interviewapp.services.video_service.analyze_eye_contact_and_head",
+            return_value={"eye_contact": True, "head_movement": False},
+        ):
+            res = self.client.post(
+                self.frame_url,
+                {"frame": self._make_frame_file()},
+                format="multipart",
+            )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("already completed or finalized", res.data["detail"].lower())
+
+    @patch("interviewapp.services.video_service.get_redis_client", return_value=None)
+    @patch(
+        "interviewapp.services.video_service.generate_video_behavior_feedback",
+        return_value={"strengths": ["Steady presence"], "improvements": []},
+    )
+    def test_session_end_and_video_finalization_avoid_duplicate_groq_calls(
+        self, mock_ai_feedback, _mock_redis
+    ):
+        self._authenticate()
+        self.session.video_stats_json = {
+            "total_frames": 5,
+            "face_present_frames": 5,
+            "eye_contact_frames": 4,
+            "head_movement_frames": 1,
+        }
+        self.session.save(update_fields=["video_stats_json"])
+
+        # Finalize video first
+        res_fin = self.client.post(self.finalize_url, {}, format="json")
+        self.assertEqual(res_fin.status_code, status.HTTP_200_OK)
+        self.assertEqual(mock_ai_feedback.call_count, 1)
+
+        # Now end session -> should NOT call generate_video_behavior_feedback a second time
+        res_end = self.client.post(self.end_url, {}, format="json")
+        self.assertEqual(res_end.status_code, status.HTTP_200_OK)
+        self.assertEqual(mock_ai_feedback.call_count, 1)
+
+    @patch("interviewapp.services.video_service.count_faces", side_effect=RuntimeError("OpenCV failure"))
+    def test_dependency_failure_returns_controlled_error_without_traceback(self, _mock_faces):
+        self._authenticate()
+        res = self.client.post(
+            self.frame_url,
+            {"frame": self._make_frame_file()},
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertEqual(res.data["status"], "error")
+        self.assertNotIn("Traceback", str(res.data))
+        self.assertNotIn("OpenCV failure", str(res.data))
+
+    @patch("interviewapp.services.video_service.get_redis_client", return_value=None)
+    @patch(
+        "interviewapp.services.video_service.analyze_eye_contact_and_head",
+        return_value={"eye_contact": False, "head_movement": False},
+    )
+    @patch("interviewapp.services.video_service.count_faces", return_value=1)
+    def test_template_upload_frame_endpoint_remains_functional(self, _mock_faces, _mock_behavior, _mock_redis):
+        from django.test import Client
+
+        web_client = Client()
+        web_client.force_login(self.user)
+
+        res = web_client.post(
+            reverse("interviewapp:upload_frame"),
+            {
+                "frame": self._make_frame_file(),
+                "session_id": self.session.id,
+                "frame_id": "tpl-1",
+            },
+        )
+        self.assertEqual(res.status_code, 200)
+        payload = res.json()
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(payload["faces"], 1)
+
+    @patch("interviewapp.services.video_service.get_redis_client", return_value=None)
+    def test_concurrent_finalization_invokes_groq_once(self, _mock_redis):
+        self._authenticate()
+        self.session.video_stats_json = {
+            "total_frames": 6,
+            "face_present_frames": 6,
+            "eye_contact_frames": 5,
+            "head_movement_frames": 1,
+        }
+        self.session.save(update_fields=["video_stats_json"])
+
+        call_count = 0
+        nested_response = {}
+
+        def _slow_groq(**_kwargs):
+            nonlocal call_count
+            call_count += 1
+            # Simulate a concurrent finalize request arriving while first holds the claim
+            res2 = self.client.post(self.finalize_url, {}, format="json")
+            nested_response["status"] = res2.status_code
+            return {"strengths": ["Clear presence"], "improvements": []}
+
+        with patch(
+            "interviewapp.services.video_service.generate_video_behavior_feedback",
+            side_effect=_slow_groq,
+        ):
+            res1 = self.client.post(self.finalize_url, {}, format="json")
+
+        self.assertEqual(res1.status_code, status.HTTP_200_OK)
+        self.assertEqual(nested_response["status"], status.HTTP_200_OK)
+        self.assertEqual(call_count, 1)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.video_feedback_json["strengths"], ["Clear presence"])
+        self.assertNotIn("_finalizing_token", self.session.video_stats_json)
+
+    @patch("interviewapp.services.video_service.get_redis_client", return_value=None)
+    def test_finalization_retry_after_recoverable_failure(self, _mock_redis):
+        self._authenticate()
+        self.session.video_stats_json = {
+            "total_frames": 4,
+            "face_present_frames": 4,
+            "eye_contact_frames": 3,
+            "head_movement_frames": 1,
+        }
+        self.session.save(update_fields=["video_stats_json"])
+
+        # First attempt fails inside Groq -> claim must be released
+        with patch(
+            "interviewapp.services.video_service.generate_video_behavior_feedback",
+            side_effect=RuntimeError("Groq timeout"),
+        ):
+            res1 = self.client.post(self.finalize_url, {}, format="json")
+
+        self.assertEqual(res1.status_code, status.HTTP_200_OK)
+        self.assertIsNone(res1.data["video_ai_feedback"])
+        self.session.refresh_from_db()
+        self.assertNotIn("_finalizing_token", self.session.video_stats_json or {})
+
+        # Retry succeeds and persists feedback
+        with patch(
+            "interviewapp.services.video_service.generate_video_behavior_feedback",
+            return_value={"strengths": ["Recovered"], "improvements": []},
+        ) as mock_groq:
+            res2 = self.client.post(self.finalize_url, {}, format="json")
+
+        self.assertEqual(res2.status_code, status.HTTP_200_OK)
+        self.assertEqual(res2.data["video_ai_feedback"]["strengths"], ["Recovered"])
+        mock_groq.assert_called_once()
+
+    @patch("interviewapp.services.video_service.get_redis_client", return_value=None)
+    def test_stale_finalization_claim_recovery_and_ownership_check(self, _mock_redis):
+        import time as _time
+        from interviewapp.services.video_service import _commit_finalization_result
+
+        self._authenticate()
+        self.session.video_stats_json = {
+            "total_frames": 5,
+            "face_present_frames": 5,
+            "eye_contact_frames": 4,
+            "head_movement_frames": 1,
+            "_finalizing_token": "stale-token-123",
+            "_finalizing_at": _time.time() - 3600,
+        }
+        self.session.save(update_fields=["video_stats_json"])
+
+        with patch(
+            "interviewapp.services.video_service.generate_video_behavior_feedback",
+            return_value={"strengths": ["New owner"], "improvements": []},
+        ):
+            res = self.client.post(self.finalize_url, {}, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["video_ai_feedback"]["strengths"], ["New owner"])
+
+        # Stale worker trying to commit with old token must be rejected
+        committed = _commit_finalization_result(
+            self.session.id,
+            "stale-token-123",
+            {"total_frames": 5, "_finalized": True},
+            {"strengths": ["Stale overwrite"], "improvements": []},
+        )
+        self.assertFalse(committed)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.video_feedback_json["strengths"], ["New owner"])
+
+    @patch(
+        "interviewapp.services.video_service.analyze_eye_contact_and_head",
+        return_value={"eye_contact": True, "head_movement": False},
+    )
+    @patch("interviewapp.services.video_service.count_faces", return_value=1)
+    def test_redis_connection_failure_during_frame_processing_returns_sanitized_503(
+        self, _mock_faces, _mock_behavior
+    ):
+        from unittest.mock import MagicMock
+
+        mock_redis = MagicMock()
+        mock_redis.eval.side_effect = ConnectionError("redis://secret-host:6379/0 refused")
+
+        self._authenticate()
+        with patch("interviewapp.services.video_service.get_redis_client", return_value=mock_redis):
+            res = self.client.post(
+                self.frame_url,
+                {"frame": self._make_frame_file()},
+                format="multipart",
+            )
+
+        self.assertEqual(res.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertEqual(res.data["status"], "error")
+        self.assertNotIn("secret-host", str(res.data))
+        self.assertNotIn("6379", str(res.data))
+        self.assertNotIn("mockmate:video_stats", str(res.data))
+
+    def test_redis_failure_during_metrics_retrieval_returns_503_without_db_fallback(self):
+        from unittest.mock import MagicMock
+
+        mock_redis = MagicMock()
+        mock_redis.hgetall.side_effect = ConnectionError("redis://internal:6379 down")
+
+        self._authenticate()
+        with patch("interviewapp.services.video_service.get_redis_client", return_value=mock_redis):
+            res = self.client.get(self.metrics_url)
+
+        self.assertEqual(res.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertEqual(res.data["status"], "error")
+        self.assertNotIn("internal", str(res.data))
+        self.assertNotIn("6379", str(res.data))
+
+        # When DB fallback stats exist, metrics retrieval still succeeds safely
+        self.session.video_stats_json = {
+            "total_frames": 3,
+            "face_present_frames": 3,
+            "eye_contact_frames": 2,
+            "head_movement_frames": 0,
+        }
+        self.session.save(update_fields=["video_stats_json"])
+        with patch("interviewapp.services.video_service.get_redis_client", return_value=mock_redis):
+            res_db = self.client.get(self.metrics_url)
+        self.assertEqual(res_db.status_code, status.HTTP_200_OK)
+        self.assertTrue(res_db.data["has_video_data"])
+
+    def test_redis_failure_during_finalization_returns_503_and_releases_claim(self):
+        from unittest.mock import MagicMock
+
+        mock_redis = MagicMock()
+        mock_redis.eval.side_effect = ConnectionError("redis://internal:6379 down")
+
+        self._authenticate()
+        with patch("interviewapp.services.video_service.get_redis_client", return_value=mock_redis):
+            res = self.client.post(self.finalize_url, {}, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertEqual(res.data["status"], "error")
+        self.assertNotIn("internal", str(res.data))
+        self.assertNotIn("6379", str(res.data))
+        self.session.refresh_from_db()
+        self.assertNotIn("_finalizing_token", self.session.video_stats_json or {})
+
+
+
 
 
 

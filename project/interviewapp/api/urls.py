@@ -25,6 +25,11 @@ from .views.session_views import (
     SessionResumeJDCreateAPIView,
     SessionSummaryAPIView,
 )
+from .views.video_views import (
+    SessionVideoFinalizeAPIView,
+    SessionVideoFrameAPIView,
+    SessionVideoMetricsAPIView,
+)
 
 app_name = "api_v1"
 
@@ -49,5 +54,8 @@ urlpatterns = [
     path("sessions/<int:pk>/end/", SessionEndAPIView.as_view(), name="session_end"),
     path("sessions/<int:pk>/summary/", SessionSummaryAPIView.as_view(), name="session_summary"),
     path("sessions/<int:pk>/report/", SessionReportDownloadAPIView.as_view(), name="session_report_download"),
+    path("sessions/<int:pk>/video/frame/", SessionVideoFrameAPIView.as_view(), name="session_video_frame"),
+    path("sessions/<int:pk>/video/metrics/", SessionVideoMetricsAPIView.as_view(), name="session_video_metrics"),
+    path("sessions/<int:pk>/video/finalize/", SessionVideoFinalizeAPIView.as_view(), name="session_video_finalize"),
 ]
 

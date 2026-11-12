@@ -37,6 +37,7 @@ from .answer_service import (
 from .video_service import (
     process_video_frame,
     finalize_session_video_metrics,
+    get_session_video_metrics,
     SESSION_VIDEO_STATS,
 )
 from .report_service import build_session_pdf_report
@@ -61,6 +62,7 @@ __all__ = [
     "end_candidate_session",
     "process_video_frame",
     "finalize_session_video_metrics",
+    "get_session_video_metrics",
     "SESSION_VIDEO_STATS",
     "build_session_pdf_report",
 ]
