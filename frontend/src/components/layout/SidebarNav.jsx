@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   FileText,
+  History,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -14,6 +15,7 @@ import { useToast } from "../../context/ToastContext.jsx";
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/history", label: "Interview History", icon: History },
   { to: "/sessions/new", label: "Start Interview", icon: PlayCircle },
   { to: "/resumes", label: "Resume Vault", icon: FileText },
 ];

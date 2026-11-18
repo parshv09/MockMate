@@ -10,6 +10,7 @@ import { LandingPage } from "./pages/LandingPage.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 import { RegisterPage } from "./pages/RegisterPage.jsx";
 import { DashboardPage } from "./pages/DashboardPage.jsx";
+import { InterviewHistoryPage } from "./pages/InterviewHistoryPage.jsx";
 import { ResumesPage } from "./pages/ResumesPage.jsx";
 import { SessionSetupPage } from "./pages/SessionSetupPage.jsx";
 import { InterviewWorkspacePage } from "./pages/InterviewWorkspacePage.jsx";
@@ -34,6 +35,7 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/history" element={<InterviewHistoryPage />} />
           <Route path="/resumes" element={<ResumesPage />} />
           <Route path="/sessions/new" element={<SessionSetupPage />} />
           <Route path="/sessions/:id/summary" element={<SessionSummaryPage />} />

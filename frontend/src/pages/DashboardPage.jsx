@@ -23,6 +23,10 @@ import {
   formatShortDate,
   ROLE_LABELS,
 } from "../utils/dashboardStats.js";
+import {
+  getSessionDisplayTitle,
+  sortSessionsNewestFirst,
+} from "../utils/sessionHistory.js";
 import { Badge } from "../components/ui/Badge.jsx";
 import { Button } from "../components/ui/Button.jsx";
 
@@ -104,7 +108,10 @@ export function DashboardPage() {
     [sessions, resumes]
   );
 
-  const recentSessions = useMemo(() => sessions.slice(0, 5), [sessions]);
+  const recentSessions = useMemo(
+    () => sortSessionsNewestFirst(sessions).slice(0, 5),
+    [sessions]
+  );
   const recentResumes = useMemo(() => resumes.slice(0, 4), [resumes]);
 
   const firstName = user?.first_name?.trim() || user?.username || "there";
@@ -304,25 +311,26 @@ export function DashboardPage() {
       {/* Main Content Split: Recent Sessions & Resume Overview */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Recent Interview Sessions */}
-        <div className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm lg:col-span-2">
+        <section
+          aria-label="Recent interview sessions"
+          className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm lg:col-span-2"
+        >
           <div className="flex items-center justify-between gap-2">
             <div>
               <h2 className="font-display text-base font-bold text-slate-900">
                 Recent Interview Sessions
               </h2>
               <p className="text-xs text-slate-500">
-                Your latest mock interviews and scores
+                Your 5 most recent mock interviews
               </p>
             </div>
-            {sessions.length > 0 ? (
-              <Link
-                to="/sessions/new"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-              >
-                <span>New session</span>
-                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </Link>
-            ) : null}
+            <Link
+              to="/history"
+              className="inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary-subtle px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-white"
+            >
+              <span>View All</span>
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </Link>
           </div>
 
           {recentSessions.length === 0 ? (
@@ -345,10 +353,12 @@ export function DashboardPage() {
           ) : (
             <div className="divide-y divide-slate-200/80 rounded-xl border border-slate-200/80">
               {recentSessions.map((session) => {
-                const roleLabel = ROLE_LABELS[session.role] || session.role || "Interview";
+                const roleLabel = ROLE_LABELS[session.role] || session.role || null;
+                const title = getSessionDisplayTitle(session);
                 const isTailored = Boolean(session.has_resume || session.has_job_description);
+                const hasStatus = typeof session.completed === "boolean";
                 const hasScore =
-                  session.completed &&
+                  session.completed === true &&
                   typeof session.total_score === "number" &&
                   Number.isFinite(session.total_score);
 
@@ -360,13 +370,15 @@ export function DashboardPage() {
                     <div className="min-w-0 space-y-1.5">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="truncate text-sm font-semibold text-slate-900">
-                          {session.job_role || `${roleLabel} Practice`}
+                          {title}
                         </span>
-                        <Badge tone="neutral">{roleLabel}</Badge>
+                        {roleLabel ? <Badge tone="neutral">{roleLabel}</Badge> : null}
                         {isTailored ? <Badge tone="teal">Resume + JD</Badge> : null}
-                        <Badge tone={session.completed ? "success" : "warning"}>
-                          {session.completed ? "Completed" : "In Progress"}
-                        </Badge>
+                        {hasStatus ? (
+                          <Badge tone={session.completed ? "success" : "warning"}>
+                            {session.completed ? "Completed" : "In Progress"}
+                          </Badge>
+                        ) : null}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
@@ -408,7 +420,7 @@ export function DashboardPage() {
               })}
             </div>
           )}
-        </div>
+        </section>
 
         {/* Resume Overview */}
         <div className="flex flex-col justify-between space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
