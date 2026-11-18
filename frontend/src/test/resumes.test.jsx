@@ -184,8 +184,11 @@ describe("Resume Vault (/resumes)", () => {
     await user.click(within(dialog).getByRole("button", { name: /upload resume/i }));
     await waitFor(() => expect(uploadSpy).toHaveBeenCalledTimes(1));
 
+    // Wait for list refresh after modal closes before opening modal again
+    const uploadBtn = await screen.findByRole("button", { name: /^upload resume$/i });
+
     // 2. MD upload
-    await user.click(screen.getByRole("button", { name: /^upload resume$/i }));
+    await user.click(uploadBtn);
     dialog = screen.getByRole("dialog");
     const mdFile = new File(["# Resume\n- Python"], "resume.md", {
       type: "text/markdown",

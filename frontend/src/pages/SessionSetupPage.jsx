@@ -1,25 +1,37 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, PlayCircle } from "lucide-react";
 import { Button } from "../components/ui/Button.jsx";
+import { InterviewSetup } from "../components/sessions/InterviewSetup.jsx";
 
 export function SessionSetupPage() {
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#070D19] via-[#0B1528] to-[#0F1D3A] p-6 text-white shadow-lg sm:p-8">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-teal-300">
+      {/* Studio Header Banner */}
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#070D19] via-[#0B1528] to-[#0F1D3A] p-6 text-white shadow-lg sm:p-8">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-primary/25 blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-20 left-1/3 h-56 w-56 rounded-full bg-secondary/20 blur-3xl"
+        />
+
+        <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div className="space-y-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-teal-300">
+              <PlayCircle className="h-3.5 w-3.5" aria-hidden="true" />
               Session Setup
             </span>
-            <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-white">
+            <h1 className="font-display text-2xl font-bold tracking-tight text-white sm:text-3xl">
               Start a New Interview
             </h1>
-            <p className="mt-1 text-sm text-slate-300">
-              Choose between standard role practice or a resume and job-description tailored interview.
+            <p className="max-w-xl text-sm text-slate-300">
+              Choose between standard role practice or a personalized interview tailored to your resume and target job description.
             </p>
           </div>
 
-          <Link to="/dashboard">
+          <Link to="/dashboard" className="shrink-0">
             <Button
               variant="secondary"
               size="sm"
@@ -30,19 +42,9 @@ export function SessionSetupPage() {
             </Button>
           </Link>
         </div>
-      </div>
+      </section>
 
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200/80 bg-white py-12 text-center shadow-sm">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-subtle text-primary">
-          <PlayCircle className="h-6 w-6" aria-hidden="true" />
-        </div>
-        <h2 className="mt-4 font-display text-base font-bold text-slate-900">
-          Interview configuration coming next
-        </h2>
-        <p className="mt-1 max-w-md text-sm text-slate-600">
-          This protected workspace is ready for Standard and Resume + JD session creation in the next implementation step.
-        </p>
-      </div>
+      <InterviewSetup />
     </div>
   );
 }
