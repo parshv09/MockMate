@@ -224,4 +224,7 @@ git rm --cached --ignore-unmatch "**/groq_last_response.txt"
 htmlcov/
 
 # RAG vector database index (ChromaDB persistent storage)
-rag_index/
+rag_index/
+.agents
+design-system
+skills-lock.json
