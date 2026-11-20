@@ -26,6 +26,7 @@ from .views.session_views import (
     SessionSummaryAPIView,
 )
 from .views.video_views import (
+    SessionAvatarTokenAPIView,
     SessionVideoFinalizeAPIView,
     SessionVideoFrameAPIView,
     SessionVideoMetricsAPIView,
@@ -57,5 +58,6 @@ urlpatterns = [
     path("sessions/<int:pk>/video/frame/", SessionVideoFrameAPIView.as_view(), name="session_video_frame"),
     path("sessions/<int:pk>/video/metrics/", SessionVideoMetricsAPIView.as_view(), name="session_video_metrics"),
     path("sessions/<int:pk>/video/finalize/", SessionVideoFinalizeAPIView.as_view(), name="session_video_finalize"),
+    path("sessions/<int:pk>/avatar/token/", SessionAvatarTokenAPIView.as_view(), name="session_avatar_token"),
 ]
 

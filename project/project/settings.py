@@ -140,6 +140,17 @@ GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 REDIS_URL = os.getenv("REDIS_URL", "").strip()
 
 # ---------------------------------------------------------------------------
+# HeyGen LiveAvatar Configuration (Server-Side Token Exchange Only)
+# ---------------------------------------------------------------------------
+LIVEAVATAR_API_KEY = os.getenv("LIVEAVATAR_API_KEY", "").strip()
+LIVEAVATAR_AVATAR_ID = os.getenv("LIVEAVATAR_AVATAR_ID", "").strip()
+LIVEAVATAR_VOICE_ID = os.getenv("LIVEAVATAR_VOICE_ID", "").strip()
+LIVEAVATAR_CONTEXT_ID = os.getenv("LIVEAVATAR_CONTEXT_ID", "").strip()
+LIVEAVATAR_TOKEN_URL = os.getenv(
+    "LIVEAVATAR_TOKEN_URL", "https://api.liveavatar.com/v1/sessions/token"
+).strip()
+
+# ---------------------------------------------------------------------------
 # RAG (Retrieval-Augmented Generation) Configuration
 # ---------------------------------------------------------------------------
 RAG_ENABLED = os.getenv("RAG_ENABLED", "TRUE").lower() in ("true", "1", "yes")

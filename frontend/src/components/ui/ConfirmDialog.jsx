@@ -10,6 +10,8 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   variant = "destructive",
   isLoading = false,
+  loadingLabel = "Deleting...",
+  children = null,
   onConfirm,
   onCancel,
 }) {
@@ -67,6 +69,8 @@ export function ConfirmDialog({
           </button>
         </div>
 
+        {children ? <div className="mt-4">{children}</div> : null}
+
         <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button
             type="button"
@@ -87,7 +91,7 @@ export function ConfirmDialog({
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                <span>Deleting...</span>
+                <span>{loadingLabel}</span>
               </>
             ) : (
               confirmLabel

@@ -56,6 +56,23 @@ describe("Interview Setup (/sessions/new)", () => {
   beforeEach(() => {
     tokenStorage.clearTokens();
     vi.restoreAllMocks();
+    vi.spyOn(sessionsApi, "fetchSessionDetail").mockResolvedValue({
+      id: 88,
+      role: "tech",
+      job_role: "Software Engineer",
+      difficulty: 3,
+      total_questions: 4,
+      answered_count: 0,
+      completed: false,
+    });
+    vi.spyOn(sessionsApi, "fetchNextQuestion").mockResolvedValue({
+      has_next_question: true,
+      session_id: 88,
+      current_index: 1,
+      total_questions: 4,
+      answer_id: 1,
+      question: { id: 1, text: "Sample question", role: "tech", difficulty: 3 },
+    });
   });
 
   it("loads standard interview setup with user's target role", async () => {
@@ -128,7 +145,7 @@ describe("Interview Setup (/sessions/new)", () => {
     await user.click(screen.getByRole("button", { name: /resume \+ job description/i }));
 
     // Resumes listed with file name
-    expect(screen.getByText("Backend Python CV")).toBeInTheDocument();
+    expect(await screen.findByText("Backend Python CV")).toBeInTheDocument();
     expect(screen.getByText("alex_backend.pdf")).toBeInTheDocument();
 
     // Validation when neither resume nor JD is provided

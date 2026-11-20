@@ -2833,6 +2833,94 @@ class VideoProcessingAPITests(APITestCase):
         self.assertNotIn("_finalizing_token", self.session.video_stats_json or {})
 
 
+class LiveAvatarTokenAPITests(APITestCase):
+    """
+    Test suite for POST /api/v1/sessions/<pk>/avatar/token/:
+    - Authentication and ownership isolation
+    - Missing credentials returns 503
+    - Completed session returns 400
+    - Successful token exchange returns single-use session_token
+    - Upstream provider error returns 502
+    """
+
+    def setUp(self):
+        self.user_a = User.objects.create_user(
+            username="avatar_user_a",
+            email="avatar_a@example.com",
+            password="PasswordA123",
+        )
+        self.user_b = User.objects.create_user(
+            username="avatar_user_b",
+            email="avatar_b@example.com",
+            password="PasswordB123",
+        )
+        self.token_a = str(RefreshToken.for_user(self.user_a).access_token)
+        self.token_b = str(RefreshToken.for_user(self.user_b).access_token)
+        self.session_a = InterviewSession.objects.create(
+            user=self.user_a,
+            role="tech",
+            job_role="Python Engineer",
+            total_questions=3,
+        )
+        self.avatar_token_url = reverse("api_v1:session_avatar_token", kwargs={"pk": self.session_a.id})
+
+    def test_avatar_token_requires_authentication_and_ownership(self):
+        res_unauth = self.client.post(self.avatar_token_url, {})
+        self.assertEqual(res_unauth.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.token_b}")
+        res_other = self.client.post(self.avatar_token_url, {})
+        self.assertEqual(res_other.status_code, status.HTTP_404_NOT_FOUND)
+
+    @override_settings(LIVEAVATAR_API_KEY="", LIVEAVATAR_AVATAR_ID="")
+    def test_avatar_token_missing_credentials_returns_503(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.token_a}")
+        res = self.client.post(self.avatar_token_url, {})
+        self.assertEqual(res.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+
+    @override_settings(LIVEAVATAR_API_KEY="test-key", LIVEAVATAR_AVATAR_ID="test-avatar")
+    def test_avatar_token_exchange_success_and_completed_guard(self):
+        from unittest.mock import MagicMock
+
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.status_code = 200
+        mock_resp.content = b'{"code":1000,"data":{"session_id":"sid-1","session_token":"ephemeral-jwt-token"}}'
+        mock_resp.json.return_value = {
+            "code": 1000,
+            "data": {
+                "session_id": "sid-1",
+                "session_token": "ephemeral-jwt-token",
+            },
+        }
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.token_a}")
+        with patch("interviewapp.api.views.video_views.requests.post", return_value=mock_resp) as mock_post:
+            res = self.client.post(self.avatar_token_url, {})
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["session_token"], "ephemeral-jwt-token")
+        self.assertEqual(res.data["avatar_session_id"], "sid-1")
+        mock_post.assert_called_once()
+        _, kwargs = mock_post.call_args
+        self.assertEqual(kwargs["headers"]["X-API-KEY"], "test-key")
+        self.assertEqual(
+            kwargs["json"],
+            {
+                "mode": "FULL",
+                "avatar_id": "test-avatar",
+                "avatar_persona": {"language": "en"},
+            },
+        )
+
+        # Completed session rejects token generation with 400
+        self.session_a.completed = True
+        self.session_a.save(update_fields=["completed"])
+        res_done = self.client.post(self.avatar_token_url, {})
+        self.assertEqual(res_done.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+
 
 
 

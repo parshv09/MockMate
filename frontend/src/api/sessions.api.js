@@ -8,7 +8,7 @@ export const SESSION_ENDPOINTS = {
   createResumeJd: "/sessions/resume-jd/",
   detail: (id) => `/sessions/${id}/`,
   nextQuestion: (id) => `/sessions/${id}/next-question/`,
-  submitAnswer: (id) => `/sessions/${id}/answers/`,
+  answers: (id) => `/sessions/${id}/answers/`,
   skipQuestion: (id) => `/sessions/${id}/skip/`,
   endSession: (id) => `/sessions/${id}/end/`,
   summary: (id) => `/sessions/${id}/summary/`,
@@ -47,5 +47,90 @@ export async function createResumeJdSession({
     difficulty: Number(difficulty),
     n_questions: Number(n_questions),
   });
+  return response.data;
+}
+
+/** GET /sessions/<id>/ → SessionDetailSerializer */
+export async function fetchSessionDetail(sessionId) {
+  const response = await apiClient.get(SESSION_ENDPOINTS.detail(sessionId));
+  return response.data;
+}
+
+/**
+ * GET /sessions/<id>/next-question/
+ * → { has_next_question: true, session_id, current_index, total_questions, answer_id, question: { id, text, role, difficulty } }
+ * → { has_next_question: false, session_id, current_index, total_questions, is_completed, message }
+ */
+export async function fetchNextQuestion(sessionId) {
+  const response = await apiClient.get(SESSION_ENDPOINTS.nextQuestion(sessionId));
+  return response.data;
+}
+
+/**
+ * POST /sessions/<id>/answers/
+ * Text answers are sent as JSON. Voice answers are sent as multipart with `audio_file`.
+ * → { message, is_session_completed, answer, next_question }
+ */
+export async function submitAnswer(
+  sessionId,
+  {
+    answerId = null,
+    answerText = "",
+    audioBlob = null,
+    audioFilename = "",
+    onUploadProgress,
+  } = {}
+) {
+  if (audioBlob) {
+    const formData = new FormData();
+    if (answerId !== null && answerId !== undefined) {
+      formData.append("answer_id", String(answerId));
+    }
+    if (answerText.trim()) {
+      formData.append("answer_text", answerText.trim());
+    }
+    formData.append("audio_file", audioBlob, audioFilename || "answer.webm");
+    const response = await apiClient.post(
+      SESSION_ENDPOINTS.answers(sessionId),
+      formData,
+      onUploadProgress ? { onUploadProgress } : undefined
+    );
+    return response.data;
+  }
+
+  const response = await apiClient.post(
+    SESSION_ENDPOINTS.answers(sessionId),
+    {
+      answer_id: answerId ?? null,
+      answer_text: answerText.trim(),
+    },
+    onUploadProgress ? { onUploadProgress } : undefined
+  );
+  return response.data;
+}
+
+/** GET /sessions/<id>/answers/ → AnswerEvaluatedSerializer[] */
+export async function fetchSessionAnswers(sessionId) {
+  const response = await apiClient.get(SESSION_ENDPOINTS.answers(sessionId));
+  return Array.isArray(response.data) ? response.data : [];
+}
+
+/** POST /sessions/<id>/skip/ → { message, is_session_completed, answer, next_question } */
+export async function skipQuestion(sessionId, { answerId = null } = {}) {
+  const response = await apiClient.post(SESSION_ENDPOINTS.skipQuestion(sessionId), {
+    answer_id: answerId ?? null,
+  });
+  return response.data;
+}
+
+/** POST /sessions/<id>/end/ → { message, session } */
+export async function endSession(sessionId) {
+  const response = await apiClient.post(SESSION_ENDPOINTS.endSession(sessionId), {});
+  return response.data;
+}
+
+/** GET /sessions/<id>/summary/ → SessionSummarySerializer (only after completion) */
+export async function fetchSessionSummary(sessionId) {
+  const response = await apiClient.get(SESSION_ENDPOINTS.summary(sessionId));
   return response.data;
 }

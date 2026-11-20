@@ -1,8 +1,10 @@
 import logging
+import requests
 
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -185,4 +187,106 @@ class SessionVideoFinalizeAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class SessionAvatarTokenAPIView(APIView):
+    """
+    POST /api/v1/sessions/<pk>/avatar/token/
+    Exchanges server-side LIVEAVATAR_API_KEY for a short-lived, single-use
+    HeyGen LiveAvatar WebRTC session token without exposing API keys to the client.
+    """
+
+    permission_classes = [IsAuthenticated, IsOwner]
+    parser_classes = [JSONParser, FormParser, MultiPartParser]
+
+    def post(self, request, pk: int):
+        session = _get_owned_session(request, pk)
+        self.check_object_permissions(request, session)
+
+        if session.completed:
+            return Response(
+                {"detail": "Cannot create a live avatar token for a completed interview session."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        api_key = (getattr(settings, "LIVEAVATAR_API_KEY", "") or "").strip()
+        avatar_id = (getattr(settings, "LIVEAVATAR_AVATAR_ID", "") or "").strip()
+        token_url = (
+            getattr(settings, "LIVEAVATAR_TOKEN_URL", "https://api.liveavatar.com/v1/sessions/token")
+            or "https://api.liveavatar.com/v1/sessions/token"
+        ).strip()
+
+        if not api_key or not avatar_id:
+            return Response(
+                {
+                    "detail": "LiveAvatar credentials (LIVEAVATAR_API_KEY and LIVEAVATAR_AVATAR_ID) are not configured on the server.",
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        persona = {"language": "en"}
+        voice_id = (getattr(settings, "LIVEAVATAR_VOICE_ID", "") or "").strip()
+        context_id = (getattr(settings, "LIVEAVATAR_CONTEXT_ID", "") or "").strip()
+        if voice_id:
+            persona["voice_id"] = voice_id
+        if context_id:
+            persona["context_id"] = context_id
+
+        payload = {
+            "mode": "FULL",
+            "avatar_id": avatar_id,
+            "avatar_persona": persona,
+        }
+
+        try:
+            upstream_resp = requests.post(
+                token_url,
+                headers={
+                    "X-API-KEY": api_key,
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+                json=payload,
+                timeout=15,
+            )
+        except requests.RequestException as exc:
+            logger.error("LiveAvatar token exchange request failed for session #%s: %s", session.id, exc)
+            return Response(
+                {"detail": "Unable to reach the LiveAvatar token service. Please try again later."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        try:
+            body = upstream_resp.json() if upstream_resp.content else {}
+        except ValueError:
+            body = {}
+
+        nested_data = body.get("data") if isinstance(body, dict) and isinstance(body.get("data"), dict) else {}
+        session_token = (
+            nested_data.get("session_token")
+            or (body.get("session_token") if isinstance(body, dict) else None)
+            or (body.get("token") if isinstance(body, dict) else None)
+        )
+
+        if not upstream_resp.ok or not session_token:
+            logger.warning(
+                "LiveAvatar token exchange rejected for session #%s (HTTP %s): %s",
+                session.id,
+                upstream_resp.status_code,
+                body.get("message") if isinstance(body, dict) else "No token returned",
+            )
+            return Response(
+                {"detail": "Failed to obtain a valid session token from LiveAvatar."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response(
+            {
+                "session_token": session_token,
+                "avatar_session_id": nested_data.get("session_id"),
+                "provider": "heygen_liveavatar",
+            },
+            status=status.HTTP_200_OK,
+        )
+
 
