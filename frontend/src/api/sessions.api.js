@@ -134,3 +134,25 @@ export async function fetchSessionSummary(sessionId) {
   const response = await apiClient.get(SESSION_ENDPOINTS.summary(sessionId));
   return response.data;
 }
+
+/** GET /sessions/<id>/report/ → PDF blob */
+export async function downloadSessionReport(sessionId) {
+  const response = await apiClient.get(SESSION_ENDPOINTS.reportDownload(sessionId), {
+    responseType: "blob",
+  });
+  return response.data;
+}
+
+/** Helper to trigger browser download of the session PDF report */
+export async function triggerReportDownload(sessionId, defaultFilename = null) {
+  const blob = await downloadSessionReport(sessionId);
+  const blobUrl = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = blobUrl;
+  anchor.download = defaultFilename || `AI_Interview_Report_${sessionId}.pdf`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  window.URL.revokeObjectURL(blobUrl);
+}
+
