@@ -268,3 +268,27 @@ class StandardQuestionRelevanceTests(TestCase):
         self.assertNotIn("long sections of code", prompt_hr)
         self.assertIn("do NOT apply technical difficulty levels", prompt_hr)
 
+    def test_summary_suggestions_fallback_never_dumps_raw_questions_or_overlaps(self):
+        from interviewapp.qgen_groq import generate_session_suggestions
+
+        answers = [
+            {
+                "question_text": "What is the purpose of a loop in code? Describe the difference between a for loop and a while loop.",
+                "answer_text": "A for loop iterates a known range while a while loop runs until a condition becomes false.",
+                "score": 82,
+                "feedback": "Clear explanation of for vs while loops.",
+            },
+            {
+                "question_text": "Explain the difference between a variable and a constant in programming.",
+                "answer_text": "I am not sure.",
+                "score": 25,
+                "feedback": "Needs clearer explanation of mutability vs immutability.",
+            },
+        ]
+        with patch("interviewapp.qgen_groq._call_groq_chat", side_effect=RuntimeError("Groq timeout")):
+            result = generate_session_suggestions(None, answers)
+
+        self.assertNotIn(answers[0]["question_text"][:50], " ".join(result["strengths"]))
+        self.assertNotIn(answers[1]["question_text"][:50], " ".join(result["improvements"]))
+        self.assertEqual(set(result["strengths"]) & set(result["improvements"]), set())
+
