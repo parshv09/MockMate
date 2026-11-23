@@ -34,16 +34,17 @@ ROLE_MAP = {
 try:
     from ..views_helpers import generate_question_stub
 except ImportError:
-    def generate_question_stub(role: str, difficulty: int = 3) -> Dict:
+    def generate_question_stub(role: str, difficulty: int = 3, job_role: str = "") -> Dict:
         """Generate a fallback template question stub when LLM quota or count is exhausted."""
         role_instructions = {
-            "tech": "Explain a core technical concept or solve a coding problem.",
-            "hr": "Describe how to handle workplace scenarios or HR policies.",
+            "tech": "Explain a core technical concept or solve a practical engineering problem.",
+            "hr": "Describe how to handle workplace scenarios or collaboration challenges.",
             "aptitude": "Solve a logical reasoning or quantitative problem.",
             "behavioral": "Discuss how to handle interpersonal or situational challenges.",
         }
         instruction = role_instructions.get(role.lower(), "Provide a general question related to the role.")
-        text = f"(AI stub) {role} question (difficulty {difficulty}): {instruction}"
+        role_prefix = f"{job_role.strip()} " if (job_role or "").strip() else ""
+        text = f"(AI stub) {role_prefix}{role} question (difficulty {difficulty}): {instruction}"
         keywords = instruction.lower().replace(" or ", ",").replace(" ", ",")
         return {"text": text, "keywords": keywords, "difficulty": difficulty}
 
@@ -55,6 +56,7 @@ def populate_session_questions(
     question_source: str,
     n: int,
     difficulty: int = 3,
+    job_role: str = "",
 ) -> int:
     """
     Saves unique questions to database, falls back to stubs if count < n,
@@ -90,11 +92,11 @@ def populate_session_questions(
             created_question_ids.append(qrow.id)
             created += 1
 
-    # 2) Fallback to template stubs if needed
+    # 2) Fallback to role-aware template stubs if needed
     attempts = 0
     while created < n and attempts < max_attempts:
         attempts += 1
-        payload = generate_question_stub(raw_role, difficulty=difficulty)
+        payload = generate_question_stub(raw_role, difficulty=difficulty, job_role=job_role)
         text = (payload.get("text") or "").strip()
         if not text:
             continue
@@ -140,7 +142,7 @@ def create_standard_session(
     difficulty: int = 3,
     n_questions: int = 5,
 ) -> Tuple[InterviewSession, int]:
-    """Creates a standard role-based mock interview session (RAG or Groq)."""
+    """Creates a standard role-based mock interview session directly via Groq LLM."""
     role_for_prompt = ROLE_MAP.get(raw_role.lower(), raw_role.capitalize())
 
     prev_questions = list(
@@ -150,28 +152,18 @@ def create_standard_session(
         .distinct()[:15]
     )
 
-    rag_enabled = getattr(settings, "RAG_ENABLED", False) and _rag_available
-    question_source = "rag" if rag_enabled else "llm"
+    question_source = "llm"
 
     try:
-        if rag_enabled:
-            llm_questions = generate_questions_with_rag(
-                role=role_for_prompt,
-                job_role=job_role,
-                n=n_questions,
-                difficulty=difficulty,
-                previous_questions=prev_questions,
-            )
-        else:
-            llm_questions = generate_questions_groq(
-                role=role_for_prompt,
-                job_role=job_role,
-                n=n_questions,
-                difficulty=difficulty,
-                previous_questions=prev_questions,
-            )
+        llm_questions = generate_questions_groq(
+            role=role_for_prompt,
+            job_role=job_role,
+            n=n_questions,
+            difficulty=difficulty,
+            previous_questions=prev_questions,
+        )
     except Exception as e:
-        logger.exception("Question generation error (rag=%s): %s", rag_enabled, e)
+        logger.exception("Direct Groq question generation error: %s", e)
         llm_questions = []
 
     with transaction.atomic():
@@ -192,6 +184,7 @@ def create_standard_session(
             question_source=question_source,
             n=n_questions,
             difficulty=difficulty,
+            job_role=job_role,
         )
 
     return session, created_count

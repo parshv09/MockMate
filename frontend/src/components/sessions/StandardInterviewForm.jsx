@@ -32,13 +32,14 @@ export function StandardInterviewForm({
   const [localErrors, setLocalErrors] = useState({});
 
   const mergedErrors = { ...localErrors, ...fieldErrors };
+  const isHrRole = role === "hr";
 
   function validate() {
     const errors = {};
     if (jobRole.trim().length > 100) {
       errors.job_role = "Job role must be 100 characters or fewer.";
     }
-    const diffNum = Number(difficulty);
+    const diffNum = isHrRole ? 3 : Number(difficulty);
     if (!Number.isInteger(diffNum) || diffNum < 1 || diffNum > 5) {
       errors.difficulty = "Difficulty must be between 1 and 5.";
     }
@@ -63,7 +64,7 @@ export function StandardInterviewForm({
     onSubmit?.({
       role,
       job_role: jobRole.trim() || "Software Engineer",
-      difficulty: Number(difficulty),
+      difficulty: isHrRole ? 3 : Number(difficulty),
       n_questions: Number(nQuestions),
     });
   }
@@ -139,7 +140,7 @@ export function StandardInterviewForm({
             name="difficulty"
             value={difficulty}
             onChange={(e) => setDifficulty(Number(e.target.value))}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isHrRole}
             className="block w-full rounded-md border border-border-strong bg-surface px-3.5 py-2.5 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:opacity-60"
           >
             {DIFFICULTY_OPTIONS.map((opt) => (
@@ -148,6 +149,11 @@ export function StandardInterviewForm({
               </option>
             ))}
           </select>
+          {isHrRole ? (
+            <p className="text-xs text-foreground-muted">
+              Standard HR questions are not filtered by difficulty level.
+            </p>
+          ) : null}
           {mergedErrors.difficulty ? (
             <p role="alert" className="text-xs font-medium text-destructive">
               {mergedErrors.difficulty}
