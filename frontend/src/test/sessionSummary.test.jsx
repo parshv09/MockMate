@@ -209,7 +209,7 @@ describe("SessionSummaryPage (/sessions/:id/summary)", () => {
     expect(screen.getByText(/Question-by-Question Study Review/i)).toBeInTheDocument();
     expect(screen.getByText(/Question 1/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/How do you guarantee atomicity and idempotency/i)
+      screen.getAllByText(/How do you guarantee atomicity and idempotency/i)[0]
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Explain the trade-offs between optimistic locking/i)
@@ -244,7 +244,7 @@ describe("SessionSummaryPage (/sessions/:id/summary)", () => {
     await user.click(answeredButton);
 
     expect(
-      screen.getByText(/How do you guarantee atomicity and idempotency/i)
+      screen.getAllByText(/How do you guarantee atomicity and idempotency/i)[0]
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Explain the trade-offs between optimistic locking/i)
@@ -313,6 +313,32 @@ describe("SessionSummaryPage (/sessions/:id/summary)", () => {
 
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(await screen.findByText("Staff Backend Engineer")).toBeInTheDocument();
+  });
+
+  it("displays API detail message on 404 not found", async () => {
+    const notFoundError = {
+      response: { status: 404, data: { detail: "No InterviewSession matches the given query." } },
+    };
+    vi.spyOn(sessionsApi, "fetchSessionSummary").mockRejectedValueOnce(notFoundError);
+
+    renderSummaryPage("999");
+
+    expect(await screen.findByText(/Could Not Load Report/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/No InterviewSession matches the given query\./i)
+    ).toBeInTheDocument();
+  });
+
+  it("displays connection message when server is unreachable", async () => {
+    const offlineError = { message: "Network Error" };
+    vi.spyOn(sessionsApi, "fetchSessionSummary").mockRejectedValueOnce(offlineError);
+
+    renderSummaryPage("42");
+
+    expect(await screen.findByText(/Could Not Load Report/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Unable to reach the MockMate server/i)
+    ).toBeInTheDocument();
   });
 });
 

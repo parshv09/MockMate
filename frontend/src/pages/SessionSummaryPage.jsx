@@ -45,8 +45,11 @@ export function SessionSummaryPage() {
       ) {
         setIsPendingSession(true);
       } else {
-        const errorInfo = extractApiError(err);
-        setError(errorInfo.detail || "Unable to load interview summary. Please try again.");
+        const errorInfo = extractApiError(
+          err,
+          "Unable to load interview summary. Please try again."
+        );
+        setError(errorInfo.message);
       }
     } finally {
       setIsLoading(false);
