@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_BASE = "https://api.groq.com/openai/v1"
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+GROQ_MODEL = os.getenv("GROQ_MODEL")
 
 MAX_RETRIES = 4
 RETRY_BACKOFF = 1.5
@@ -59,18 +59,25 @@ def signature_of_text(text: str) -> str:
     norm = " ".join(text.lower().split())
     return hashlib.sha256(norm.encode("utf-8")).hexdigest()
 
+_ARITHMETIC_EXPR_RE = re.compile(r"\b\d+(?:\.\d+)?\s*(?:[+\-*/×÷=]|percent|per\s+cent)\s*\d*\b", re.IGNORECASE)
+_MATH_PHRASE_RE = re.compile(
+    r"\b(?:calculate|compute|probability|percentage|ratio|expected\s+value|mean|median|mode|"
+    r"what\s+is\s+the\s+next\s+number|next\s+term|how\s+many|how\s+much|solve\s+for|"
+    r"simple\s+interest|compound\s+interest|profit\s+and\s+loss|permutation|combination|"
+    r"distance\s+and\s+speed)\b",
+    re.IGNORECASE,
+)
+
+
 def _is_math_question_textual(text: str) -> bool:
     if not text:
         return False
     t = str(text).lower()
-    if _NUMERIC_RE.search(t):
-        return True
     if "%" in t or "$" in t or "₹" in t or "rupee" in t:
         return True
-    math_words = ("calculate", "compute", "probability", "percent", "ratio", "sum", "difference",
-                  "distance", "speed", "time", "how many", "what is the next number", "series",
-                  "expected value", "mean", "median", "mode")
-    if any(w in t for w in math_words):
+    if _ARITHMETIC_EXPR_RE.search(t):
+        return True
+    if _MATH_PHRASE_RE.search(t):
         return True
     return False
 
@@ -84,50 +91,96 @@ def _build_prompt(role: str, job_role: str, n: int, difficulty: int = 2, math_ne
     else:
         math_clause = f"- ZERO items of the {n} items should be of type \"math\".\n"
 
-    # Define difficulty details
-    diff_val = int(difficulty)
-    if diff_val <= 2:
-        diff_instruction = "The questions should be introductory, fundamental, and conceptual. Focus on basic definitions, syntax, simple operations, and core vocabulary suited for entry-level candidates or interns. Avoid complex architectural, design pattern, or optimization questions."
-    elif diff_val <= 4:
-        diff_instruction = "The questions should test practical development knowledge, intermediate concepts, problem-solving, and implementation details. Suit this for candidates with 2-4 years of experience. Ask about best practices, common libraries/frameworks, basic system design, and testing."
-    else:
-        diff_instruction = "The questions should be deep, complex, and highly technical. Focus on performance optimization, advanced architecture, concurrency, microservices, scaling challenges, low-level details, security, and trade-offs. Suit this for senior candidates with 5+ years of experience."
+    # Define role-specific guidelines and difficulty calibration
+    role_lower = (role or "").strip().lower()
+    is_hr = "human resources" in role_lower or role_lower == "hr"
 
-    # Define role-specific guidelines to ensure high-quality and realistic questions
-    role_lower = role.lower()
+    diff_val = max(1, min(5, int(difficulty or 3)))
+    if is_hr:
+        diff_instruction = (
+            "Standard conversational HR interview round (do NOT apply technical difficulty levels)."
+        )
+    elif diff_val <= 2:
+        diff_instruction = (
+            f"TARGET LEVEL: ENTRY-LEVEL / JUNIOR (Difficulty {diff_val}/5).\n"
+            "- Questions MUST be introductory, fundamental, and conceptual.\n"
+            "- Focus on core syntax, fundamental definitions, simple operations, and basic workflows.\n"
+            "- STRICT PROHIBITION: Do NOT ask about distributed systems, microservices, high-traffic scaling, "
+            "race conditions, or complex architectural trade-offs."
+        )
+    elif diff_val <= 4:
+        diff_instruction = (
+            f"TARGET LEVEL: INTERMEDIATE / PRACTICAL (Difficulty {diff_val}/5, ~2-4 years experience).\n"
+            "- Test practical development knowledge, real-world implementation, debugging, API/data design, "
+            "best practices, testing, and common frameworks/tools used by a {job_role}."
+        ).format(job_role=job_role)
+    else:
+        diff_instruction = (
+            f"TARGET LEVEL: SENIOR / EXPERT (Difficulty {diff_val}/5, 5+ years experience).\n"
+            "- Focus on deep architecture, performance optimization, concurrency, scalability, failure modes, "
+            "security, and engineering trade-offs for a {job_role}."
+        ).format(job_role=job_role)
+
     role_instructions = ""
-    
-    if "human resources" in role_lower or "hr" == role_lower:
-        role_instructions = f"""
-- These must be HR interview questions asked BY AN HR INTERVIEWER TO THE CANDIDATE who is applying for the job of {job_role}.
-- Do NOT generate questions testing the candidate's ability to DO human resources work (e.g. no questions on how to hire, run payroll, or design company benefits).
-- Instead, generate classic behavioral and fit questions asked of a {job_role} candidate (e.g., questions about career goals, strengths/weaknesses, teamwork, handling conflict, motivation, and why they want to join the company).
+
+    if is_hr:
+        role_instructions = """
+- Generate STANDARD, classic HR interview questions (e.g., tell me about yourself, strengths and weaknesses, career goals, motivation, teamwork, handling conflict, adaptability, handling pressure, receiving feedback, and work ethic).
+- Keep every question SHORT, simple, and conversational: 1 direct sentence (roughly 8 to 20 words). Ask ONE clear thing per question—never bundle multiple sub-questions together.
+- Good style examples:
+  * "Tell me a bit about yourself and your background."
+  * "What are your biggest strengths and one area you are working to improve?"
+  * "Tell me about a time you handled a disagreement in a team."
+  * "What motivates you most in your day-to-day work?"
+  * "Where do you see your career heading over the next few years?"
+- Do NOT tie every question to the candidate's specific job role or turn this into a role-specific technical/domain interview. Keep questions broadly applicable HR questions.
+- Do NOT generate questions testing the candidate's ability to DO human resources work (e.g. no questions on hiring, payroll, or designing HR policies).
 """
     elif "technical" in role_lower or "tech" in role_lower:
         role_instructions = f"""
-- Generate actual technical questions commonly asked in interviews for a {job_role} position.
-- Focus on key technologies, programming concepts, architecture, syntax, tools, or domain-specific logic that a qualified {job_role} must know.
+- Generate practical, role-specific technical questions specifically for a "{job_role}" position.
+- Prioritize real-world engineering, implementation, troubleshooting, and design questions over generic textbook definitions.
+- Stay strictly within the "{job_role}" domain (do NOT introduce unrelated frontend/UI questions for backend roles, or unrelated backend/infra questions for frontend roles, unless genuinely relevant to "{job_role}").
 """
     elif "behavioral" in role_lower or "beh" in role_lower:
         role_instructions = f"""
-- Generate situational and behavioral questions asked of a candidate applying for the job of {job_role}.
-- Focus on real-world scenarios: handling project deadlines, working in teams, resolving conflicts, learning from failures, or solving problems under pressure.
+- Generate situational and behavioral questions tailored to a candidate applying for "{job_role}".
+- Focus on real-world scenarios: handling project deadlines, working in teams, resolving conflicts, ownership, learning from failures, or solving problems under pressure.
 """
     else:
         # Fallback or Aptitude
         role_instructions = f"""
-- Generate questions appropriate for a candidate interviewing for a {job_role} position.
+- Generate logical, analytical, and problem-solving questions appropriate for a candidate interviewing for a "{job_role}" position.
 """
 
     # Avoid previously asked questions
     avoid_clause = ""
     if previous_questions:
-        avoid_clause = "\n- Do NOT generate any questions similar to the following previously asked questions:\n"
+        avoid_clause = "\n- Do NOT repeat or paraphrase any of the following previously asked questions:\n"
         for pq in previous_questions:
             avoid_clause += f"  * {pq}\n"
 
+    alignment_rule = (
+        "- Focus on standard, realistic HR interview questions rather than role-specific technical questions."
+        if is_hr
+        else f'- Every question MUST clearly align with "{job_role}", the "{role}" interview focus, and difficulty {diff_val}/5.'
+    )
+    header_line = (
+        f"You are an expert HR interviewer. Generate EXACTLY {n} distinct, standard HR interview questions (candidate background context: {job_role})."
+        if is_hr
+        else f'You are an expert interviewer. Generate EXACTLY {n} distinct, non-overlapping questions for a {role} interview round for a candidate applying for the job role: "{job_role}".'
+    )
+
+    style_rules = (
+        "- Keep questions natural, polite, and easy to answer conversationally in 1-2 minutes.\n"
+        "- Do NOT write long multi-sentence scenarios or formal essay prompts."
+        if is_hr
+        else "- Keep questions clear, focused, and answerable within 5 minutes.\n"
+        "- Do NOT ask the candidate to write or develop long sections of code; ask conceptual, practical design, or troubleshooting questions instead."
+    )
+
     return f"""
-You are an expert interviewer. Generate EXACTLY {n} questions for a {role} interview round for a candidate applying for the job role: "{job_role}".
+{header_line}
 
 Difficulty Level / Target Depth:
 {diff_instruction}
@@ -136,18 +189,17 @@ Rules:
 {role_instructions}
 - {math_clause}
 {avoid_clause}
-- Ask realistic, high-quality questions that are commonly asked in real-world interviews for this role.
-- Keep questions clear, focused, and answerable within 5 minutes.
-- Do NOT ask the candidate to write or develop long sections of code; ask conceptual or code-analysis questions instead.
-- Generate unique, varied questions each time.
-- Each item must include: text, keywords (comma-separated target terms candidate should mention), difficulty, type (either "math" or "reasoning").
+{alignment_rule}
+- Avoid vague filler questions, duplicates, or trivial paraphrases of the same concept.
+{style_rules}
+- Each item must include: text, keywords (comma-separated target terms candidate should mention), difficulty ({diff_val}), type (either "math" or "reasoning").
 
 Return ONLY a valid JSON array of objects in this exact format:
 [
   {{
     "text": "The question text",
     "keywords": "keyword1,keyword2,keyword3",
-    "difficulty": {difficulty},
+    "difficulty": {diff_val},
     "type": "reasoning"
   }}
 ]
@@ -163,19 +215,30 @@ def _get_groq_api_key() -> str:
             pass
     return key or GROQ_API_KEY
 
-def _call_groq_chat(prompt: str, model: Optional[str] = None, temperature: float = 0.15) -> str:
+def _get_groq_model() -> str:
+    try:
+        from django.conf import settings
+        model_name = getattr(settings, "GROQ_MODEL", "")
+        if model_name:
+            return str(model_name).strip()
+    except Exception:
+        pass
+    return os.getenv("GROQ_MODEL", GROQ_MODEL)
+
+
+def _call_groq_chat(prompt: str, model: Optional[str] = None, temperature: float = 0.15, max_tokens: int = 2200) -> str:
     api_key = _get_groq_api_key()
     if not api_key:
         raise RuntimeError("GROQ_API_KEY not set")
     url = f"{GROQ_BASE}/chat/completions"
     body = {
-        "model": model or GROQ_MODEL,
+        "model": model or _get_groq_model(),
         "messages": [
             {"role": "system", "content": "You are an interview question generator."},
             {"role": "user", "content": prompt}
         ],
         "temperature": temperature,
-        "max_tokens": 1000,
+        "max_tokens": max_tokens,
         "top_p": 0.95,
     }
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
@@ -420,6 +483,18 @@ def generate_questions_groq(role: str, job_role: str, n: int = 5, difficulty: in
             logger.exception("JSON extraction failed: %s", e)
             continue
 
+        clean_prev = [str(p).strip() for p in (previous_questions or []) if str(p).strip()]
+        try:
+            from .rag.validators import (
+                SIMILARITY_THRESHOLD_INTERNAL,
+                SIMILARITY_THRESHOLD_PREVIOUS,
+                _is_similar_to_any,
+            )
+        except Exception:
+            _is_similar_to_any = None
+            SIMILARITY_THRESHOLD_PREVIOUS = 0.80
+            SIMILARITY_THRESHOLD_INTERNAL = 0.85
+
         for obj in parsed:
             v = _validate_question_obj(obj)
             if not v:
@@ -428,6 +503,12 @@ def generate_questions_groq(role: str, job_role: str, n: int = 5, difficulty: in
             sig = signature_of_text(v["text"])
             if sig in seen_sigs:
                 continue
+            if _is_similar_to_any is not None:
+                if clean_prev and _is_similar_to_any(v["text"], clean_prev, SIMILARITY_THRESHOLD_PREVIOUS):
+                    continue
+                collected_texts = [c["text"] for c in collected]
+                if collected_texts and _is_similar_to_any(v["text"], collected_texts, SIMILARITY_THRESHOLD_INTERNAL):
+                    continue
             seen_sigs.add(sig)
             collected.append(v)
             if v.get("type") == "math":
@@ -453,13 +534,26 @@ def generate_questions_groq(role: str, job_role: str, n: int = 5, difficulty: in
     final = collected[:n]
     final = enforce_role_allowed_types(role_key, job_role, final, n, difficulty=difficulty, previous_questions=previous_questions, model=model)
 
-    # If still fewer than n, fill with safe stubs
+    # Deduplicate against previous_questions and within current batch using validate_and_deduplicate
+    try:
+        from .rag.validators import validate_and_deduplicate
+        final = validate_and_deduplicate(
+            questions=final,
+            n=n,
+            previous_questions=previous_questions,
+        )
+    except Exception as dedup_exc:
+        logger.warning("Question deduplication skipped: %s", dedup_exc)
+        final = final[:n]
+
+    # If still fewer than n, fill with role-aware stubs
     if len(final) < n:
         missing = n - len(final)
-        logger.info("Filling %s missing questions with stubs", missing)
+        logger.info("Filling %s missing questions with role-aware stubs for '%s'", missing, job_role)
         from .views_helpers import generate_question_stub  # import here to avoid circular import at module load
+        seen_sigs = set(signature_of_text(q["text"]) for q in final if q.get("text"))
         for _ in range(missing):
-            stub = generate_question_stub(role_key, difficulty=difficulty)
+            stub = generate_question_stub(role_key, difficulty=difficulty, job_role=job_role)
             # ensure uniqueness vs seen_sigs
             sig = signature_of_text(stub.get("text", ""))
             if sig in seen_sigs and not DEV_FORCE_CREATE:
@@ -471,7 +565,7 @@ def generate_questions_groq(role: str, job_role: str, n: int = 5, difficulty: in
             final.append({
                 "text": stub.get("text", "").strip(),
                 "keywords": stub.get("keywords", ""),
-                "difficulty": stub.get("difficulty", 3),
+                "difficulty": stub.get("difficulty", difficulty),
                 "type": "math" if _is_math_question_textual(stub.get("text", "")) else "reasoning"
             })
 

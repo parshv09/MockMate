@@ -255,5 +255,27 @@ describe("Interview Setup (/sessions/new)", () => {
       await screen.findByRole("heading", { name: /sign in to mockmate/i })
     ).toBeInTheDocument();
   });
+
+  it("disables difficulty level when Human Resources (HR) focus is selected", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(resumesApi, "fetchResumes").mockResolvedValueOnce([]);
+
+    renderSessionSetup();
+    await screen.findByRole("heading", { name: /start a new interview/i });
+
+    const focusSelect = screen.getByLabelText(/interview focus/i);
+    const difficultySelect = screen.getByLabelText(/difficulty level/i);
+
+    expect(difficultySelect).toBeEnabled();
+
+    await user.selectOptions(focusSelect, "hr");
+    expect(difficultySelect).toBeDisabled();
+    expect(
+      screen.getByText(/standard hr questions are not filtered by difficulty level/i)
+    ).toBeInTheDocument();
+
+    await user.selectOptions(focusSelect, "tech");
+    expect(difficultySelect).toBeEnabled();
+  });
 });
 
