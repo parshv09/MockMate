@@ -619,18 +619,56 @@ Return valid JSON only.
         }
     except Exception as e:
         logging.getLogger(__name__).exception("LLM suggestions failed: %s", e)
-        # fallback simple heuristic
+        # Fallback: derive meaningful, non-overlapping strengths and improvements from score/feedback
         strengths = []
         improvements = []
-        for a in sorted(answers, key=lambda x: x.get("score", 0), reverse=True)[:3]:
-            strengths.append(a.get("question_text","")[:120])
-        for a in sorted(answers, key=lambda x: x.get("score", 0))[:5]:
-            improvements.append(a.get("question_text","")[:120])
+        scored = [
+            a for a in (answers or [])
+            if (a.get("answer_text") or "").strip() not in ("", "[Skipped]")
+        ]
+
+        strong_items = sorted(
+            [a for a in scored if (a.get("score") or 0) >= 60],
+            key=lambda x: x.get("score", 0),
+            reverse=True,
+        )
+        weak_items = sorted(
+            [a for a in (answers or []) if (a.get("score") or 0) < 60 or (a.get("answer_text") or "").strip() in ("", "[Skipped]")],
+            key=lambda x: x.get("score", 0),
+        )
+
+        for a in strong_items[:3]:
+            fb = (a.get("feedback") or "").strip()
+            if fb:
+                strengths.append(fb[:160])
+            else:
+                strengths.append(f"Demonstrated solid understanding on Question (score {int(round(a.get('score') or 0))}%).")
+
+        for a in weak_items[:4]:
+            fb = (a.get("feedback") or "").strip()
+            if fb and "skip" not in fb.lower():
+                improvements.append(fb[:160])
+            else:
+                improvements.append("Review core concepts and practice giving concrete, structured examples for weaker answers.")
+
+        if not strengths:
+            strengths = ["Completed the interview session and engaged with the questions."]
+        if not improvements:
+            improvements = [
+                "Provide more concrete real-world examples and measurable outcomes in your answers.",
+                "Structure responses clearly (context, approach, and trade-offs) under time limits.",
+            ]
+
+        # Ensure deduplication and no overlap between strengths and improvements
+        strengths = list(dict.fromkeys(strengths))[:4]
+        strength_set = set(strengths)
+        improvements = [imp for imp in dict.fromkeys(improvements) if imp not in strength_set][:5]
+
         return {
             "strengths": strengths,
             "improvements": improvements,
-            "overall_tip": "Practice weaker areas identified above; do timed mock interviews and focus on concise structure.",
-            "resources": ["LeetCode", "Cracking the Coding Interview", "Grokking the System Design Interview"]
+            "overall_tip": "Focus on structuring your answers clearly with concrete examples and revisiting any skipped or lower-scoring topics.",
+            "resources": ["Review core domain fundamentals", "Practice timed mock interviews", "Prepare concise STAR/architecture examples"]
         }
 
 

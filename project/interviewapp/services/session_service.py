@@ -402,7 +402,10 @@ def get_session_summary_data(session: InterviewSession) -> Dict:
         for a in answers
     ]
 
-    suggestions = getattr(session, "suggestions_json", None) or None
+    from django.core.cache import cache
+
+    suggestions_cache_key = f"session_suggestions:{session.id}:{len(answers)}"
+    suggestions = getattr(session, "suggestions_json", None) or cache.get(suggestions_cache_key)
     if not suggestions:
         try:
             suggestions = generate_session_suggestions(session, answer_payload)
@@ -412,13 +415,18 @@ def get_session_summary_data(session: InterviewSession) -> Dict:
             logger.exception("Suggestion generation failed: %s", e)
             suggestions = None
 
-    if suggestions and hasattr(session, "suggestions_json"):
+    if suggestions:
         try:
-            with transaction.atomic():
-                session.suggestions_json = suggestions
-                session.save(update_fields=["suggestions_json"])
+            cache.set(suggestions_cache_key, suggestions, timeout=60 * 60 * 24)
         except Exception:
             pass
+        if hasattr(session, "suggestions_json"):
+            try:
+                with transaction.atomic():
+                    session.suggestions_json = suggestions
+                    session.save(update_fields=["suggestions_json"])
+            except Exception:
+                pass
 
     if not suggestions:
         suggestions = {
