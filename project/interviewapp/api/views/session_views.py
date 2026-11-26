@@ -214,6 +214,7 @@ class SessionNextQuestionAPIView(APIView):
             )
 
         q_data = QuestionPublicSerializer(next_ans.question).data if next_ans.question else None
+        q_kind = "follow_up" if next_ans.parent_answer_id is not None else "main"
 
         return Response(
             {
@@ -223,6 +224,7 @@ class SessionNextQuestionAPIView(APIView):
                 "total_questions": session.total_questions,
                 "answer_id": next_ans.id,
                 "question": q_data,
+                "question_kind": q_kind,
             },
             status=status.HTTP_200_OK,
         )

@@ -4,6 +4,8 @@ import { SpeechTranscript } from "./SpeechTranscript.jsx";
 
 export function QuestionDisplay({
   question,
+  isAdaptive = false,
+  questionKind = null,
   currentIndex = 1,
   totalQuestions = 1,
   lastEvaluation = null,
@@ -15,10 +17,12 @@ export function QuestionDisplay({
 
   return (
     <div className="space-y-3">
-      <SpeechTranscript
-        evaluation={lastEvaluation}
-        onDismiss={onDismissEvaluation}
-      />
+      {!isAdaptive ? (
+        <SpeechTranscript
+          evaluation={lastEvaluation}
+          onDismiss={onDismissEvaluation}
+        />
+      ) : null}
 
       <section
         aria-label="Current interview question"
@@ -27,8 +31,24 @@ export function QuestionDisplay({
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-primary">
-              Question {safeIndex} of {safeTotal}
+              {isAdaptive
+                ? `Interaction ${safeIndex} of ${safeTotal}`
+                : `Question ${safeIndex} of ${safeTotal}`}
             </span>
+            {isAdaptive && questionKind ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    questionKind === "follow_up"
+                      ? "bg-amber-50 text-amber-700"
+                      : "bg-indigo-50 text-indigo-700"
+                  }`}
+                >
+                  {questionKind === "follow_up" ? "Follow-up" : "Main Question"}
+                </span>
+              </>
+            ) : null}
             <span aria-hidden="true">·</span>
             <span>{roleLabel}</span>
             {typeof question?.difficulty === "number" ? (

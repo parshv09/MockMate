@@ -5,9 +5,12 @@ import { Button } from "../ui/Button.jsx";
 
 export function InterviewHeader({
   session,
+  isAdaptive = false,
   currentIndex = 1,
   totalQuestions = 0,
   answeredCount = 0,
+  mainQuestionsCount = 0,
+  maxMainQuestions = 0,
   isAvatarConnected = false,
   isBusy = false,
   onRequestEndInterview,
@@ -37,6 +40,11 @@ export function InterviewHeader({
             <span className="truncate font-display text-sm font-bold text-white">
               {title}
             </span>
+            {isAdaptive ? (
+              <span className="inline-flex items-center rounded-full border border-indigo-400/30 bg-indigo-500/15 px-2 py-0.5 text-[11px] font-medium text-indigo-200">
+                Adaptive
+              </span>
+            ) : null}
             {session?.resume_title ? (
               <span className="hidden items-center gap-1 rounded-full border border-teal-400/25 bg-teal-500/10 px-2 py-0.5 text-[11px] font-medium text-teal-300 md:inline-flex">
                 <FileText className="h-3 w-3" aria-hidden="true" />
@@ -48,7 +56,22 @@ export function InterviewHeader({
 
         {/* Right: Compact Progress, Connection Status & End Interview */}
         <div className="flex shrink-0 items-center gap-2.5">
-          {safeTotal > 0 ? (
+          {isAdaptive && maxMainQuestions > 0 ? (
+            <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs">
+              <span className="font-semibold text-white">
+                Main {mainQuestionsCount} / {maxMainQuestions}
+              </span>
+              <span className="text-slate-500" aria-hidden="true">
+                ·
+              </span>
+              <span
+                aria-label="Total interactions count"
+                className="font-mono text-[11px] text-slate-300 tabular-nums"
+              >
+                {answeredCount} / {safeTotal} Interactions
+              </span>
+            </div>
+          ) : safeTotal > 0 ? (
             <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs">
               <span className="font-semibold text-white">
                 Question {safeIndex} of {safeTotal}
