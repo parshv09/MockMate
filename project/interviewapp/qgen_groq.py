@@ -956,3 +956,84 @@ JSON FORMAT:
     ]
 
 
+def generate_follow_up_question_groq(
+    original_question_text: str,
+    candidate_answer: str,
+    role: str,
+    job_role: str,
+    difficulty: int = 3,
+    previous_questions: Optional[List[str]] = None,
+    model: Optional[str] = None,
+) -> Optional[Dict]:
+    """
+    Generates ONE contextual follow-up question based on the original main question
+    and the candidate's submitted answer, matching the original difficulty and role.
+    Returns a validated question dict or None if generation/validation fails.
+    """
+    diff_val = max(1, min(5, int(difficulty or 3)))
+    orig_q = (original_question_text or "").strip()[:1000]
+    cand_ans = (candidate_answer or "").strip()[:1500]
+    role_lower = (role or "").strip().lower()
+    is_hr = "human resources" in role_lower or role_lower == "hr"
+
+    avoid_lines = [orig_q] + [str(p).strip() for p in (previous_questions or []) if str(p).strip()]
+    avoid_clause = "\n".join(f"  * {q}" for q in avoid_lines[:15])
+
+    difficulty_line = (
+        "Standard conversational HR depth."
+        if is_hr
+        else f"Target Difficulty: Level {diff_val}/5."
+    )
+
+    prompt = f"""
+You are an expert interviewer conducting a {role} interview for a "{job_role}" candidate.
+{difficulty_line}
+
+Original Question:
+{orig_q}
+
+Candidate's Answer:
+{cand_ans}
+
+TASK:
+Generate EXACTLY 1 concise follow-up question that:
+- Builds directly on the original question and the candidate's answer.
+- Probes for clarification, deeper reasoning, edge cases, or missing evidence.
+- Stays relevant to the "{role}" focus and "{job_role}" role.
+- Matches the original difficulty ({diff_val}/5).
+- Does NOT repeat or paraphrase the original question or any previously asked question:
+{avoid_clause}
+
+Return ONLY a valid JSON array containing 1 object:
+[
+  {{
+    "text": "The follow-up question text",
+    "keywords": "keyword1,keyword2,keyword3",
+    "difficulty": {diff_val},
+    "type": "reasoning"
+  }}
+]
+"""
+    try:
+        out = _call_groq_chat(prompt, model=model, temperature=0.4, max_tokens=600)
+        parsed = _extract_json_array_from_text(out)
+    except Exception as exc:
+        logger.exception("Groq follow-up generation failed: %s", exc)
+        return None
+
+    orig_sig = signature_of_text(orig_q) if orig_q else ""
+    prev_sigs = {signature_of_text(p) for p in avoid_lines if p}
+    for obj in parsed:
+        validated = _validate_question_obj(obj)
+        if not validated:
+            continue
+        validated["difficulty"] = diff_val
+        cand_sig = signature_of_text(validated["text"])
+        if cand_sig == orig_sig or cand_sig in prev_sigs:
+            continue
+        return validated
+
+    return None
+
+
+

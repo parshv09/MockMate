@@ -20,6 +20,7 @@ class SessionListSerializer(serializers.ModelSerializer):
 
     duration = serializers.IntegerField(read_only=True)
     answered_count = serializers.IntegerField(read_only=True)
+    main_questions_count = serializers.SerializerMethodField()
     has_resume = serializers.SerializerMethodField()
     has_job_description = serializers.SerializerMethodField()
 
@@ -31,6 +32,8 @@ class SessionListSerializer(serializers.ModelSerializer):
             "job_role",
             "difficulty",
             "total_questions",
+            "max_main_questions",
+            "main_questions_count",
             "answered_count",
             "current_index",
             "state",
@@ -43,6 +46,9 @@ class SessionListSerializer(serializers.ModelSerializer):
             "has_job_description",
         ]
         read_only_fields = fields
+
+    def get_main_questions_count(self, obj):
+        return obj.answers.filter(parent_answer__isnull=True).count()
 
     def get_has_resume(self, obj):
         return obj.resume_id is not None
@@ -104,6 +110,13 @@ class StandardSessionCreateSerializer(serializers.Serializer):
     def validate_job_role(self, value):
         val = (value or "").strip()
         return val if val else "Software Engineer"
+
+
+class AdaptiveSessionCreateSerializer(StandardSessionCreateSerializer):
+    """
+    Validates input parameters for creating a Hybrid Adaptive interview session.
+    `n_questions` configures `max_main_questions`.
+    """
 
 
 class ResumeJDSessionCreateSerializer(serializers.Serializer):
@@ -244,12 +257,16 @@ class AnswerEvaluatedSerializer(serializers.ModelSerializer):
     """
 
     has_audio = serializers.SerializerMethodField()
+    parent_answer_id = serializers.IntegerField(read_only=True, allow_null=True)
+    is_follow_up = serializers.SerializerMethodField()
 
     class Meta:
         model = Answer
         fields = [
             "id",
             "index",
+            "parent_answer_id",
+            "is_follow_up",
             "answer_text",
             "score",
             "feedback",
@@ -263,6 +280,9 @@ class AnswerEvaluatedSerializer(serializers.ModelSerializer):
     def get_has_audio(self, obj):
         return bool(obj.audio_file and obj.audio_file.name)
 
+    def get_is_follow_up(self, obj):
+        return obj.parent_answer_id is not None
+
 
 class AnswerSummarySerializer(serializers.ModelSerializer):
     """
@@ -272,12 +292,16 @@ class AnswerSummarySerializer(serializers.ModelSerializer):
 
     question = QuestionPublicSerializer(read_only=True)
     has_audio = serializers.SerializerMethodField()
+    parent_answer_id = serializers.IntegerField(read_only=True, allow_null=True)
+    is_follow_up = serializers.SerializerMethodField()
 
     class Meta:
         model = Answer
         fields = [
             "id",
             "index",
+            "parent_answer_id",
+            "is_follow_up",
             "question",
             "answer_text",
             "score",
@@ -292,6 +316,9 @@ class AnswerSummarySerializer(serializers.ModelSerializer):
 
     def get_has_audio(self, obj):
         return bool(obj.audio_file and obj.audio_file.name)
+
+    def get_is_follow_up(self, obj):
+        return obj.parent_answer_id is not None
 
 
 class SessionSummarySerializer(serializers.Serializer):

@@ -381,7 +381,11 @@ def get_session_summary_data(session: InterviewSession) -> Dict:
     improvements: List[str] = []
     for a in answers:
         fb = (a.feedback or "").lower()
-        snippet = a.question.text[:70] + ("..." if len(a.question.text) > 70 else "")
+        snippet = (
+            a.question.text[:70] + ("..." if len(a.question.text) > 70 else "")
+            if a.question
+            else f"Question #{a.index}"
+        )
         if fb:
             if "good" in fb or "excellent" in fb or "well" in fb:
                 strengths.append(f"Strong answer to: {snippet}")

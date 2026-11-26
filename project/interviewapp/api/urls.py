@@ -15,6 +15,9 @@ from .views.resume_views import (
     ResumeListCreateAPIView,
 )
 from .views.session_views import (
+    SessionAdaptiveAnswerSubmitAPIView,
+    SessionAdaptiveCreateAPIView,
+    SessionAdaptiveQuestionSkipAPIView,
     SessionAnswerSubmitAPIView,
     SessionDetailAPIView,
     SessionEndAPIView,
@@ -47,11 +50,14 @@ urlpatterns = [
 
     # Interview session endpoints
     path("sessions/", SessionListCreateAPIView.as_view(), name="session_list_create"),
+    path("sessions/adaptive/", SessionAdaptiveCreateAPIView.as_view(), name="session_adaptive_create"),
     path("sessions/resume-jd/", SessionResumeJDCreateAPIView.as_view(), name="session_resume_jd_create"),
     path("sessions/<int:pk>/", SessionDetailAPIView.as_view(), name="session_detail"),
     path("sessions/<int:pk>/next-question/", SessionNextQuestionAPIView.as_view(), name="session_next_question"),
     path("sessions/<int:pk>/answers/", SessionAnswerSubmitAPIView.as_view(), name="session_answer_submit"),
+    path("sessions/<int:pk>/adaptive/answers/", SessionAdaptiveAnswerSubmitAPIView.as_view(), name="session_adaptive_answer_submit"),
     path("sessions/<int:pk>/skip/", SessionQuestionSkipAPIView.as_view(), name="session_question_skip"),
+    path("sessions/<int:pk>/adaptive/skip/", SessionAdaptiveQuestionSkipAPIView.as_view(), name="session_adaptive_question_skip"),
     path("sessions/<int:pk>/end/", SessionEndAPIView.as_view(), name="session_end"),
     path("sessions/<int:pk>/summary/", SessionSummaryAPIView.as_view(), name="session_summary"),
     path("sessions/<int:pk>/report/", SessionReportDownloadAPIView.as_view(), name="session_report_download"),
