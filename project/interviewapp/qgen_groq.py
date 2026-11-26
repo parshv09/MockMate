@@ -637,17 +637,33 @@ Return valid JSON only.
             key=lambda x: x.get("score", 0),
         )
 
+        def _format_feedback_bullet(text: str, max_len: int = 320) -> str:
+            clean = " ".join((text or "").split())
+            if len(clean) <= max_len:
+                return clean
+            # Prefer ending at a complete sentence within max_len
+            window = clean[:max_len]
+            for sep in (". ", "! ", "? "):
+                idx = window.rfind(sep)
+                if idx >= 80:
+                    return window[: idx + 1].strip()
+            # Fall back to word boundary so we never cut mid-word
+            word_idx = window.rfind(" ")
+            if word_idx >= 80:
+                return window[:word_idx].rstrip(" ,;:-") + "..."
+            return window.rstrip() + "..."
+
         for a in strong_items[:3]:
             fb = (a.get("feedback") or "").strip()
             if fb:
-                strengths.append(fb[:160])
+                strengths.append(_format_feedback_bullet(fb))
             else:
                 strengths.append(f"Demonstrated solid understanding on Question (score {int(round(a.get('score') or 0))}%).")
 
         for a in weak_items[:4]:
             fb = (a.get("feedback") or "").strip()
             if fb and "skip" not in fb.lower():
-                improvements.append(fb[:160])
+                improvements.append(_format_feedback_bullet(fb))
             else:
                 improvements.append("Review core concepts and practice giving concrete, structured examples for weaker answers.")
 
