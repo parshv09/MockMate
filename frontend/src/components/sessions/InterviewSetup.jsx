@@ -170,7 +170,7 @@ export function InterviewSetup() {
           icon={FileText}
           title="Resume + Job Description"
           badgeText="Personalized"
-          description="Practice questions tailored to your uploaded resume and the exact job description you are applying for."
+          description="Practice adaptive questions grounded in your uploaded resume and target job description, with dynamic follow-ups."
           selected={mode === "resume_jd"}
           disabled={isSubmitting}
           onSelect={() => handleModeChange("resume_jd")}
@@ -211,7 +211,7 @@ export function InterviewSetup() {
               ? "Choose your interview focus, target role, difficulty, and question count."
               : mode === "adaptive"
               ? "Set your focus, target role, starting difficulty, and main question budget."
-              : "Select a saved resume, paste the job description, and set your session preferences."}
+              : "Select a saved resume, paste the job description, and set your starting difficulty and main question budget."}
           </p>
         </div>
 

@@ -34,6 +34,7 @@ from dataclasses import dataclass
 import logging
 from typing import Optional, Tuple, Union
 
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -417,12 +418,36 @@ def _generate_next_question_payload(
     """
     Generates 1 question dict outside any database transaction, with safe fallback
     to role-aware stubs so Groq outages never leave the session deadlocked.
+    Uses Resume/JD RAG generators when the session has resume or job_description context.
     """
-    from ..qgen_groq import generate_follow_up_question_groq, generate_questions_groq
+    from ..qgen_groq import (
+        generate_follow_up_question_groq,
+        generate_questions_groq,
+        generate_resume_jd_questions_groq,
+    )
 
     role_for_prompt = ROLE_MAP.get((session.role or "").strip().lower(), session.role or "Technical")
+    jd_text = (getattr(session, "job_description", "") or "").strip()
+    resume_obj = getattr(session, "resume", None)
+    has_resume_or_jd = bool(resume_obj is not None or jd_text)
+
     if decision.action == "follow_up":
         orig_text = last_answer.question.text if last_answer.question else ""
+        resume_chunks = None
+        if resume_obj is not None and getattr(settings, "RAG_ENABLED", True):
+            try:
+                from ..rag.resume_rag import retrieve_resume_context_for_answer
+
+                resume_chunks = retrieve_resume_context_for_answer(
+                    resume_obj=resume_obj,
+                    question_text=orig_text,
+                    answer_text=last_answer.answer_text or "",
+                    top_k=2,
+                )
+            except Exception as exc:
+                logger.warning("Adaptive follow-up resume retrieval failed: %s", exc)
+                resume_chunks = None
+
         qobj = None
         try:
             qobj = generate_follow_up_question_groq(
@@ -432,6 +457,8 @@ def _generate_next_question_payload(
                 job_role=session.job_role,
                 difficulty=decision.next_difficulty,
                 previous_questions=previous_questions,
+                resume_chunks=resume_chunks,
+                job_description=jd_text if has_resume_or_jd else "",
             )
         except Exception as exc:
             logger.exception("Adaptive follow-up Groq generation error: %s", exc)
@@ -442,6 +469,45 @@ def _generate_next_question_payload(
         return _generate_follow_up_stub(orig_text, decision.next_difficulty, session.role), "template"
 
     # action == "next_main"
+    if has_resume_or_jd:
+        rag_enabled = getattr(settings, "RAG_ENABLED", True) and (resume_obj is not None)
+        question_source = "rag_resume" if rag_enabled else "llm"
+        llm_questions = []
+        try:
+            if rag_enabled and resume_obj is not None:
+                from ..rag.resume_rag import generate_resume_jd_rag_questions
+
+                llm_questions = generate_resume_jd_rag_questions(
+                    resume_obj=resume_obj,
+                    job_description=jd_text,
+                    n=1,
+                    difficulty=decision.next_difficulty,
+                    previous_questions=previous_questions,
+                )
+            else:
+                resume_text = resume_obj.extracted_text if resume_obj is not None else ""
+                llm_questions = generate_resume_jd_questions_groq(
+                    resume_text=resume_text,
+                    job_description=jd_text,
+                    n=1,
+                    difficulty=decision.next_difficulty,
+                    previous_questions=previous_questions,
+                )
+        except Exception as exc:
+            logger.exception("Adaptive Resume/JD next-main generation error (rag=%s): %s", rag_enabled, exc)
+            llm_questions = []
+
+        qobj = (llm_questions or [None])[0]
+        if qobj and (qobj.get("text") or "").strip():
+            return qobj, question_source
+
+        stub = generate_question_stub(
+            session.role,
+            difficulty=decision.next_difficulty,
+            job_role=session.job_role,
+        )
+        return stub, "template"
+
     llm_questions = []
     try:
         llm_questions = generate_questions_groq(

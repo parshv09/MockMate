@@ -299,5 +299,166 @@ describe("Adaptive Interview Frontend Integration", () => {
       await screen.findByRole("heading", { name: /main q2: after skip/i })
     ).toBeInTheDocument();
   });
+
+  it("upgrades new Resume/JD sessions (state='adaptive') to adaptive progression while preserving resume metadata", async () => {
+    const user = userEvent.setup();
+    const resumeJdAdaptiveSession = {
+      id: 91,
+      role: "tech",
+      job_role: "Job Match: Senior Django Engineer",
+      difficulty: 3,
+      total_questions: 1,
+      max_main_questions: 2,
+      main_questions_count: 1,
+      answered_count: 0,
+      current_index: 1,
+      state: "adaptive",
+      completed: false,
+      is_completed: false,
+      has_resume: true,
+      has_job_description: true,
+      resume_id: 15,
+      resume_title: "Backend Python CV",
+    };
+
+    vi.spyOn(resumesApi, "fetchResumes").mockResolvedValue([
+      {
+        id: 15,
+        title: "Backend Python CV",
+        file_name: "cv.pdf",
+        has_file: true,
+        created_at: "2026-11-10T10:00:00Z",
+        updated_at: "2026-11-12T10:00:00Z",
+      },
+    ]);
+    vi.spyOn(sessionsApi, "createResumeJdSession").mockResolvedValueOnce({
+      message: "Resume & JD tailored interview session created successfully.",
+      created_questions: 1,
+      session: resumeJdAdaptiveSession,
+      next_question: {
+        id: 9101,
+        text: "Resume Q1: Walk through your Redis caching setup.",
+        role: "tech",
+        difficulty: 3,
+      },
+      next_question_kind: "main",
+      main_questions_count: 1,
+      max_main_questions: 2,
+      total_interactions: 1,
+    });
+    vi.spyOn(sessionsApi, "fetchSessionDetail").mockResolvedValue(resumeJdAdaptiveSession);
+    vi.spyOn(sessionsApi, "fetchNextQuestion").mockResolvedValue({
+      has_next_question: true,
+      session_id: 91,
+      current_index: 1,
+      total_questions: 1,
+      answer_id: 901,
+      question_kind: "main",
+      question: {
+        id: 9101,
+        text: "Resume Q1: Walk through your Redis caching setup.",
+        role: "tech",
+        difficulty: 3,
+      },
+    });
+    const adaptiveSubmitSpy = vi.spyOn(sessionsApi, "submitAdaptiveAnswer").mockResolvedValueOnce({
+      message: "Answer submitted and evaluated successfully.",
+      session_id: 91,
+      is_session_completed: false,
+      answer: { id: 901, index: 1, answer_text: "Used Redis.", score: 55, processed: true },
+      next_question: {
+        id: 9102,
+        text: "Follow-up: How did you invalidate stale Redis keys?",
+        role: "tech",
+        difficulty: 3,
+      },
+      next_question_kind: "follow_up",
+      main_questions_count: 1,
+      max_main_questions: 2,
+      total_interactions: 2,
+    });
+    const legacySubmitSpy = vi.spyOn(sessionsApi, "submitAnswer");
+
+    renderRoute("/sessions/new");
+    await screen.findByRole("heading", { name: /start a new interview/i });
+
+    await user.click(screen.getByRole("button", { name: /resume \+ job description/i }));
+    expect(screen.getByLabelText(/number of main questions/i)).toBeInTheDocument();
+
+    await user.click(await screen.findByRole("button", { name: /backend python cv/i }));
+    const countInput = screen.getByLabelText(/number of main questions/i);
+    await user.clear(countInput);
+    await user.type(countInput, "2");
+    await user.click(screen.getByRole("button", { name: /start tailored interview/i }));
+
+    expect(
+      await screen.findByRole("heading", { name: /resume q1: walk through your redis caching setup/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Adaptive")).toBeInTheDocument();
+    expect(screen.getByText("Backend Python CV")).toBeInTheDocument();
+    expect(screen.getByText("Main 1 / 2")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/your answer/i, { selector: "textarea" }), "Used Redis.");
+    await user.click(screen.getByRole("button", { name: /submit answer/i }));
+
+    await waitFor(() => expect(adaptiveSubmitSpy).toHaveBeenCalledTimes(1));
+    expect(legacySubmitSpy).not.toHaveBeenCalled();
+    expect(
+      await screen.findByRole("heading", { name: /follow-up: how did you invalidate stale redis keys/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Follow-up")).toBeInTheDocument();
+    expect(screen.getByText("Main 1 / 2")).toBeInTheDocument();
+  });
+
+  it("keeps legacy Resume/JD sessions (state='in_progress') on fixed submitAnswer endpoint", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(sessionsApi, "fetchSessionDetail").mockResolvedValue({
+      id: 92,
+      role: "tech",
+      job_role: "Job Match: Legacy Role",
+      difficulty: 3,
+      total_questions: 2,
+      answered_count: 0,
+      current_index: 1,
+      state: "in_progress",
+      completed: false,
+      is_completed: false,
+      has_resume: true,
+      resume_id: 15,
+      resume_title: "Legacy CV",
+    });
+    vi.spyOn(sessionsApi, "fetchNextQuestion").mockResolvedValue({
+      has_next_question: true,
+      session_id: 92,
+      current_index: 1,
+      total_questions: 2,
+      answer_id: 921,
+      question_kind: "main",
+      question: { id: 9201, text: "Legacy Resume Q1", role: "tech", difficulty: 3 },
+    });
+    const legacySubmitSpy = vi.spyOn(sessionsApi, "submitAnswer").mockResolvedValueOnce({
+      message: "Answer submitted and evaluated successfully.",
+      is_session_completed: false,
+      answer: { id: 921, index: 1, answer_text: "Legacy answer.", score: 75, feedback: "Good.", processed: true },
+      next_question: { id: 9202, text: "Legacy Resume Q2", role: "tech", difficulty: 3 },
+    });
+    const adaptiveSubmitSpy = vi.spyOn(sessionsApi, "submitAdaptiveAnswer");
+
+    renderRoute("/sessions/92/interview");
+
+    expect(
+      await screen.findByRole("heading", { name: /legacy resume q1/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Adaptive")).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/your answer/i, { selector: "textarea" }), "Legacy answer.");
+    await user.click(screen.getByRole("button", { name: /submit answer/i }));
+
+    await waitFor(() => expect(legacySubmitSpy).toHaveBeenCalledTimes(1));
+    expect(adaptiveSubmitSpy).not.toHaveBeenCalled();
+    expect(
+      await screen.findByRole("heading", { name: /legacy resume q2/i })
+    ).toBeInTheDocument();
+  });
 });
 

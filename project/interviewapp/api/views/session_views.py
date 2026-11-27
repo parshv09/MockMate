@@ -151,12 +151,23 @@ class SessionResumeJDCreateAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        first_ans = session.answers.select_related("question").order_by("index").first()
+        next_q_data = (
+            QuestionPublicSerializer(first_ans.question).data
+            if (first_ans and first_ans.question)
+            else None
+        )
         detail_data = SessionDetailSerializer(session, context={"request": request}).data
         return Response(
             {
                 "message": "Resume & JD tailored interview session created successfully.",
                 "created_questions": created_count,
                 "session": detail_data,
+                "next_question": next_q_data,
+                "next_question_kind": "main" if next_q_data else None,
+                "main_questions_count": detail_data.get("main_questions_count", 1),
+                "max_main_questions": session.max_main_questions,
+                "total_interactions": session.total_questions,
             },
             status=status.HTTP_201_CREATED,
         )
