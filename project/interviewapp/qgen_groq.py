@@ -1127,29 +1127,48 @@ def build_fallback_learning_roadmap(
     """
     gaps = list(skill_gaps_summary.get("skill_gaps") or [])
     has_evidence = bool(skill_gaps_summary.get("has_sufficient_evidence", False))
+    evidence_status = skill_gaps_summary.get("evidence_status", "")
 
     if not has_evidence or not gaps:
+        is_strong = has_evidence and evidence_status == "strong_no_gaps"
         return {
             "title": f"{job_role} Learning Roadmap",
             "overview": (
-                "Insufficient evaluated interview evidence was available to identify specific skill gaps. "
-                "Complete more interview questions to unlock targeted concept recommendations."
+                f"You demonstrated strong performance across your {job_role} interview with no critical gaps. "
+                "Explore optional advanced system architecture and production-scale topics below."
+                if is_strong
+                else (
+                    "Insufficient evaluated interview evidence was available to identify specific skill gaps. "
+                    "Complete more interview questions to unlock targeted concept recommendations."
+                )
             ),
             "estimated_hours": 2,
             "learning_steps": [
                 {
                     "order": 1,
-                    "concept": "Core Role Fundamentals",
+                    "concept": "Advanced System Design & Trade-offs" if is_strong else "Core Role Fundamentals",
                     "subject": role.upper() if role else "General",
                     "priority": "Low",
-                    "why_needed": "Limited interview evidence was recorded in this session.",
+                    "why_needed": (
+                        "Optional advanced enrichment following strong interview performance."
+                        if is_strong
+                        else "Limited interview evidence was recorded in this session."
+                    ),
                     "learning_objectives": [
-                        f"Review foundational concepts for {job_role}",
-                        "Complete a full practice session for personalized gap analysis",
+                        f"Deepen production-grade {job_role} architecture and trade-off analysis"
+                        if is_strong
+                        else f"Review foundational concepts for {job_role}",
+                        "Practice articulating edge cases and scalability constraints"
+                        if is_strong
+                        else "Complete a full practice session for personalized gap analysis",
                     ],
                     "how_to_learn": (
-                        "Attempt all main and follow-up questions in your next mock interview "
-                        "so the analyzer can measure strengths and weaknesses accurately."
+                        "Study real-world postmortems and design trade-offs for high-throughput systems."
+                        if is_strong
+                        else (
+                            "Attempt all main and follow-up questions in your next mock interview "
+                            "so the analyzer can measure strengths and weaknesses accurately."
+                        )
                     ),
                     "practical_example": f"Prepare one end-to-end walkthrough of a recent {job_role} project.",
                     "exercise": "Write a 2-minute structured explanation covering problem, approach, and trade-offs.",
@@ -1174,7 +1193,11 @@ def build_fallback_learning_roadmap(
         total_hours += 4 if priority == "High" else (2 if priority == "Medium" else 1)
         weaknesses = gap.get("demonstrated_weaknesses") or []
         opportunities = gap.get("improvement_opportunities") or []
-        reasons = weaknesses or opportunities or [f"Strengthen practical mastery of {concept}."]
+        classification = gap.get("classification", "demonstrated_weakness")
+        if classification == "optional_advanced_learning" and not weaknesses:
+            reasons = [f"Optional advanced learning opportunity (score {gap.get('avg_score', '')}%)."] + list(opportunities[:1])
+        else:
+            reasons = weaknesses or opportunities or [f"Strengthen practical mastery of {concept}."]
         why_needed = " ".join(str(r).strip() for r in reasons[:2] if str(r).strip())
 
         steps.append(
@@ -1222,21 +1245,43 @@ def _normalize_learning_roadmap(
     role: str,
     job_role: str,
 ) -> Optional[Dict]:
-    """Validates and normalizes Groq roadmap JSON against the required schema."""
+    """
+    Validates and normalizes Groq roadmap JSON against the required schema.
+    Enforces calculated skill-gap priorities and rejects invalid/stop-word concepts.
+    """
+    from .services.roadmap_service import is_valid_concept_token
+
     if not isinstance(raw_data, dict):
         return None
     raw_steps = raw_data.get("learning_steps")
     if not isinstance(raw_steps, list) or not raw_steps:
         return None
 
+    gaps = list(skill_gaps_summary.get("skill_gaps") or [])
+    gap_by_concept = {
+        str(g.get("concept") or "").strip().lower(): g
+        for g in gaps
+        if g.get("concept")
+    }
+
     normalized_steps: List[Dict] = []
-    for idx, step in enumerate(raw_steps, 1):
+    for step in raw_steps:
         if not isinstance(step, dict):
             continue
         concept = str(step.get("concept") or "").strip()
-        if not concept:
+        if not concept or not is_valid_concept_token(concept):
             continue
-        priority = str(step.get("priority") or "Medium").strip().capitalize()
+
+        matched_gap = gap_by_concept.get(concept.lower())
+        if matched_gap:
+            # Never allow the LLM to alter calculated priority or subject
+            priority = str(matched_gap.get("priority") or "Medium").strip().capitalize()
+            subject = str(matched_gap.get("subject") or role or "General").strip()
+            concept = str(matched_gap.get("concept") or concept).strip()
+        else:
+            priority = str(step.get("priority") or "Medium").strip().capitalize()
+            subject = str(step.get("subject") or role or "General").strip()
+
         if priority not in ("High", "Medium", "Low"):
             priority = "Medium"
 
@@ -1246,9 +1291,9 @@ def _normalize_learning_roadmap(
 
         normalized_steps.append(
             {
-                "order": idx,
+                "order": len(normalized_steps) + 1,
                 "concept": concept,
-                "subject": str(step.get("subject") or role or "General").strip(),
+                "subject": subject,
                 "priority": priority,
                 "why_needed": str(step.get("why_needed") or f"Strengthen {concept}.").strip(),
                 "learning_objectives": objectives or [f"Master core concepts of {concept}"],
@@ -1280,16 +1325,57 @@ def _normalize_learning_roadmap(
     }
 
 
+def _extract_json_object_from_text(text: str) -> Optional[Dict]:
+    """
+    Extracts a JSON object from model output, stripping <think> blocks,
+    Markdown fences, and trailing commas before falling back to raw_decode.
+    """
+    if not text or not str(text).strip():
+        return None
+
+    cleaned = re.sub(r"<think>.*?</think>", "", str(text), flags=re.DOTALL | re.IGNORECASE)
+    cleaned = re.sub(r"```(?:json)?\s*|\s*```", "", cleaned, flags=re.IGNORECASE).strip()
+
+    candidates = [cleaned]
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end > start:
+        candidates.append(cleaned[start : end + 1])
+
+    for candidate in candidates:
+        for variant in (candidate, re.sub(r",\s*([}\]])", r"\1", candidate)):
+            try:
+                parsed = json.loads(variant)
+                if isinstance(parsed, dict):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
+
+    decoder = json.JSONDecoder()
+    for match in re.finditer(r"\{", cleaned):
+        try:
+            parsed, _ = decoder.raw_decode(cleaned[match.start() :])
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            continue
+
+    return None
+
+
 def generate_learning_roadmap_groq(
     skill_gaps_summary: Dict,
     role: str = "tech",
     job_role: str = "Software Engineer",
     difficulty: int = 3,
     model: Optional[str] = None,
+    raise_on_failure: bool = False,
 ) -> Dict:
     """
     Generates a structured, personalized learning roadmap from compact deterministic
-    skill-gap data (never raw full transcripts). Falls back deterministically on failure.
+    skill-gap data (never raw full transcripts) using configurable primary and
+    fallback Groq models. Falls back deterministically on failure unless
+    `raise_on_failure=True` (used during regeneration to preserve prior roadmaps).
     """
     if not skill_gaps_summary.get("has_sufficient_evidence") or not skill_gaps_summary.get("skill_gaps"):
         return build_fallback_learning_roadmap(skill_gaps_summary, role=role, job_role=job_role)
@@ -1299,18 +1385,22 @@ def generate_learning_roadmap_groq(
 
     prompt = f"""
 You are a senior technical mentor and curriculum architect.
-Create a personalized, ordered Learning Roadmap based ONLY on the identified interview skill gaps below.
+Create a personalized, ordered Learning Roadmap based ONLY on the validated interview skill gaps below.
 
 Target Role: {job_role} ({role})
 Interview Difficulty: {diff_val}/5
 
-Identified Skill Gaps (ordered by priority):
+Validated Skill Gaps (ordered by priority):
 {compact_gaps}
 
 RULES:
-- Base every learning step strictly on the identified skill gaps above; do NOT invent unrelated weaknesses.
+- Cover every concept in the validated skill gaps above with a specific, actionable learning step.
+- Do NOT invent candidate scores, alter the provided `avg_score`, or change the calculated `priority` ("High", "Medium", "Low").
+- Ground each step's `why_needed` in the provided `demonstrated_weaknesses`, `improvement_opportunities`, and `question_context`.
+- When `classification` is "optional_advanced_learning", explicitly frame the step as optional advanced enrichment rather than a critical weakness.
 - Order steps logically (High priority foundations first, then Medium, then Low).
 - Do NOT include fabricated URLs in resources. Provide clean resource titles, book/doc names, or search suggestions only (no http/https links).
+- Keep each text field concise (1-3 sentences) and use single quotes inside code snippets so the JSON stays strictly valid.
 - Return ONLY valid JSON matching this exact schema:
 {{
   "title": "Personalized {job_role} Learning Roadmap",
@@ -1322,7 +1412,7 @@ RULES:
       "concept": "Concept Name",
       "subject": "Subject Area",
       "priority": "High",
-      "why_needed": "Why this gap matters based on interview signals",
+      "why_needed": "Evidence-based explanation referencing interview performance",
       "learning_objectives": ["Objective 1", "Objective 2"],
       "how_to_learn": "Step-by-step study approach",
       "practical_example": "Concrete example to walk through",
@@ -1334,20 +1424,29 @@ RULES:
   ]
 }}
 """
-    try:
-        out = _call_groq_chat(prompt, model=model, temperature=0.2, max_tokens=2600)
-        start = out.find("{")
-        end = out.rfind("}")
-        if start == -1 or end <= start:
-            raise ValueError("No JSON object found in Groq roadmap response")
-        parsed = json.loads(out[start : end + 1])
-        normalized = _normalize_learning_roadmap(parsed, skill_gaps_summary, role=role, job_role=job_role)
-        if normalized:
-            return normalized
-        raise ValueError("Groq roadmap JSON failed schema validation")
-    except Exception as exc:
-        logger.warning("Groq learning roadmap generation failed; using deterministic fallback: %s", exc)
-        return build_fallback_learning_roadmap(skill_gaps_summary, role=role, job_role=job_role)
+    last_exc: Optional[Exception] = None
+    for attempt in range(1, 3):
+        try:
+            out = _call_groq_chat(prompt, model=model, temperature=0.2, max_tokens=4000)
+            parsed = _extract_json_object_from_text(out)
+            if parsed is None:
+                raise ValueError("No valid JSON object found in Groq roadmap response")
+            normalized = _normalize_learning_roadmap(parsed, skill_gaps_summary, role=role, job_role=job_role)
+            if normalized:
+                return normalized
+            raise ValueError("Groq roadmap JSON failed schema validation")
+        except (ValueError, json.JSONDecodeError) as exc:
+            last_exc = exc
+            logger.warning("Groq roadmap JSON parse/validation failed (attempt %s/2): %s", attempt, exc)
+            continue
+        except Exception as exc:
+            last_exc = exc
+            break
+
+    logger.warning("Groq learning roadmap generation failed; using deterministic fallback: %s", last_exc)
+    if raise_on_failure:
+        raise last_exc or RuntimeError("Groq learning roadmap generation failed")
+    return build_fallback_learning_roadmap(skill_gaps_summary, role=role, job_role=job_role)
 
 
 

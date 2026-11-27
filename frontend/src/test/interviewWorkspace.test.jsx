@@ -603,6 +603,9 @@ describe("Live Interview Studio (/sessions/:id/interview)", () => {
         },
       ],
     });
+    vi.spyOn(sessionsApi, "fetchLearningRoadmap").mockRejectedValueOnce({
+      response: { status: 404, data: { detail: "Not found" } },
+    });
 
     renderWorkspace(42);
     await screen.findByRole("heading", {

@@ -151,6 +151,84 @@ class LearningRoadmapSkillGapTests(APITestCase):
         self.assertEqual(result["evidence_status"], "insufficient_evidence")
         self.assertEqual(result["skill_gaps"], [])
 
+    def test_rejects_stopword_explain_and_single_letter_a_and_retains_multiword(self):
+        session = self._new_session()
+        q1 = GeneratedQuestion.objects.create(
+            role="tech",
+            difficulty=3,
+            text="Describe the difference between caching and Docker container.",
+            keywords="caching,docker container,debugging,explain,a,load balancing",
+            signature="qual-1",
+        )
+        Answer.objects.create(
+            session=session,
+            question=q1,
+            index=1,
+            answer_text="Partial answer.",
+            score=45,
+            improvement_tips="Review fundamentals",
+            processed=True,
+        )
+
+        result = analyze_session_skill_gaps(session)
+        concepts = {g["concept"] for g in result["skill_gaps"]}
+        self.assertNotIn("Explain", concepts)
+        self.assertNotIn("A", concepts)
+        self.assertIn("Caching", concepts)
+        self.assertIn("Docker", concepts)
+        self.assertIn("Debugging", concepts)
+        self.assertIn("Load Balancing", concepts)
+        # String improvement_tips must not be split character-by-character
+        for gap in result["skill_gaps"]:
+            self.assertEqual(gap["improvement_opportunities"], ["Review fundamentals"])
+
+    def test_invalid_keywords_fall_back_to_question_context_or_unclassified(self):
+        session = self._new_session()
+        q1 = GeneratedQuestion.objects.create(
+            role="tech",
+            difficulty=3,
+            text="How would you troubleshoot issues related to authentication and rate limiting?",
+            keywords="explain,a,describe",
+            signature="fallback-ctx-1",
+        )
+        q2 = GeneratedQuestion.objects.create(
+            role="tech",
+            difficulty=3,
+            text="Tell me about something challenging.",
+            keywords="a,explain",
+            signature="fallback-unclass-1",
+        )
+        Answer.objects.create(session=session, question=q1, index=1, answer_text="Ans", score=40, processed=True)
+        Answer.objects.create(session=session, question=q2, index=2, answer_text="Ans", score=40, processed=True)
+
+        result = analyze_session_skill_gaps(session)
+        concepts = {g["concept"] for g in result["skill_gaps"]}
+        self.assertIn("Authentication", concepts)
+        self.assertIn("Rate Limiting", concepts)
+        self.assertIn("Unclassified", concepts)
+        self.assertNotIn("Explain", concepts)
+        self.assertNotIn("A", concepts)
+
+    def test_duplicate_concepts_merged_and_scores_consistent_across_fields(self):
+        session = self._new_session()
+        q1 = GeneratedQuestion.objects.create(
+            role="tech", difficulty=3, text="Explain caching.", keywords="caching,docker container", signature="dup-1"
+        )
+        q2 = GeneratedQuestion.objects.create(
+            role="tech", difficulty=3, text="Explain cache.", keywords="cache,docker", signature="dup-2"
+        )
+        Answer.objects.create(session=session, question=q1, index=1, answer_text="A1", score=45, processed=True)
+        Answer.objects.create(session=session, question=q2, index=2, answer_text="A2", score=60, processed=True)
+
+        result = analyze_session_skill_gaps(session)
+        by_concept = {g["concept"]: g for g in result["skill_gaps"]}
+        self.assertEqual(set(by_concept.keys()), {"Caching", "Docker"})
+        for concept_name in ("Caching", "Docker"):
+            gap = by_concept[concept_name]
+            self.assertEqual(gap["attempt_count"], 2)
+            self.assertEqual(gap["avg_score"], 52.5)
+            self.assertIn("52.5%", gap["demonstrated_weaknesses"][0])
+
 
 class LearningRoadmapGenerationTests(APITestCase):
     """Tests for Groq roadmap generation, schema normalization, and deterministic fallbacks."""
@@ -187,7 +265,7 @@ class LearningRoadmapGenerationTests(APITestCase):
                         "order": 1,
                         "concept": "Database Indexing",
                         "subject": "Databases",
-                        "priority": "high",
+                        "priority": "low",  # LLM tries to downgrade calculated High priority
                         "why_needed": "Low score on indexing.",
                         "learning_objectives": ["Understand B-tree lookups"],
                         "how_to_learn": "Read docs and run EXPLAIN.",
@@ -208,6 +286,7 @@ class LearningRoadmapGenerationTests(APITestCase):
         self.assertEqual(roadmap["title"], "Backend Study Plan")
         self.assertEqual(len(roadmap["learning_steps"]), 1)
         step = roadmap["learning_steps"][0]
+        # Calculated priority from skill_gaps must be preserved over LLM output
         self.assertEqual(step["priority"], "High")
         # Fabricated URL must be stripped
         for res_item in step["resources"]:
@@ -226,6 +305,39 @@ class LearningRoadmapGenerationTests(APITestCase):
         roadmap = generate_learning_roadmap_groq(self.SAMPLE_GAPS, role="tech", job_role="Backend Engineer")
         self.assertEqual(len(roadmap["learning_steps"]), 1)
         self.assertEqual(roadmap["learning_steps"][0]["concept"], "Database Indexing")
+
+    @patch("interviewapp.qgen_groq._call_groq_chat")
+    def test_think_tags_trailing_commas_and_parse_retry_succeed(self, mock_groq):
+        valid_with_think_and_trailing_comma = (
+            "<think>Considering {incomplete json} thoughts</think>\n"
+            "```json\n"
+            "{\n"
+            '  "title": "Recovered Plan",\n'
+            '  "overview": "Focus on indexing.",\n'
+            '  "estimated_hours": 4,\n'
+            '  "learning_steps": [\n'
+            "    {\n"
+            '      "order": 1,\n'
+            '      "concept": "Database Indexing",\n'
+            '      "subject": "TECH",\n'
+            '      "priority": "High",\n'
+            '      "why_needed": "Score 35%",\n'
+            '      "learning_objectives": ["Understand B-trees",],\n'
+            '      "how_to_learn": "Run EXPLAIN.",\n'
+            '      "practical_example": "CREATE INDEX idx ON t(c);",\n'
+            '      "exercise": "Benchmark query.",\n'
+            '      "interview_questions": ["When does an index hurt writes?"],\n'
+            '      "resources": ["PostgreSQL Docs"],\n'
+            '      "expected_outcome": "Explain trade-offs.",\n'
+            "    },\n"
+            "  ]\n"
+            "}\n"
+            "```"
+        )
+        mock_groq.side_effect = ['{"title": "broken', valid_with_think_and_trailing_comma]
+        roadmap = generate_learning_roadmap_groq(self.SAMPLE_GAPS, role="tech", job_role="Backend Engineer")
+        self.assertEqual(roadmap["title"], "Recovered Plan")
+        self.assertEqual(mock_groq.call_count, 2)
 
 
 class LearningRoadmapAPITests(APITestCase):
@@ -362,8 +474,8 @@ class LearningRoadmapAPITests(APITestCase):
         self.assertEqual(mock_groq.call_count, 2)
         self.assertEqual(LearningRoadmap.objects.filter(session=self.session).count(), 1)
 
-    @patch("interviewapp.qgen_groq.generate_learning_roadmap_groq", side_effect=RuntimeError("Unexpected crash"))
-    def test_regeneration_failure_preserves_previous_roadmap(self, _mock_gen):
+    @patch("interviewapp.qgen_groq._call_groq_chat", side_effect=RuntimeError("Groq failed"))
+    def test_regeneration_failure_preserves_previous_roadmap(self, _mock_groq):
         LearningRoadmap.objects.create(
             session=self.session,
             skill_gaps_json=[{"concept": "Django ORM", "priority": "High"}],

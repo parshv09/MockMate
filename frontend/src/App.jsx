@@ -15,6 +15,7 @@ import { ResumesPage } from "./pages/ResumesPage.jsx";
 import { SessionSetupPage } from "./pages/SessionSetupPage.jsx";
 import { InterviewWorkspacePage } from "./pages/InterviewWorkspacePage.jsx";
 import { SessionSummaryPage } from "./pages/SessionSummaryPage.jsx";
+import { LearningRoadmapPage } from "./pages/LearningRoadmapPage.jsx";
 import { NotFoundPage } from "./pages/NotFoundPage.jsx";
 
 export function AppRoutes() {
@@ -39,6 +40,7 @@ export function AppRoutes() {
           <Route path="/resumes" element={<ResumesPage />} />
           <Route path="/sessions/new" element={<SessionSetupPage />} />
           <Route path="/sessions/:id/summary" element={<SessionSummaryPage />} />
+          <Route path="/sessions/:id/learning-roadmap" element={<LearningRoadmapPage />} />
         </Route>
 
         <Route element={<InterviewBoothLayout />}>

@@ -6,7 +6,7 @@ import {
   PlayCircle,
   RefreshCw,
 } from "lucide-react";
-import { fetchSessionSummary } from "../api/sessions.api.js";
+import { fetchLearningRoadmap, fetchSessionSummary } from "../api/sessions.api.js";
 import { extractApiError } from "../utils/apiErrors.js";
 import { Button } from "../components/ui/Button.jsx";
 import { Card } from "../components/ui/Card.jsx";
@@ -20,6 +20,7 @@ import { SessionSummarySkeleton } from "../components/report/SessionSummarySkele
 export function SessionSummaryPage() {
   const { id } = useParams();
   const [summaryData, setSummaryData] = useState(null);
+  const [hasExistingRoadmap, setHasExistingRoadmap] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isPendingSession, setIsPendingSession] = useState(false);
@@ -33,6 +34,13 @@ export function SessionSummaryPage() {
     try {
       const data = await fetchSessionSummary(id);
       setSummaryData(data);
+
+      try {
+        const roadmap = await fetchLearningRoadmap(id);
+        setHasExistingRoadmap(Boolean(roadmap?.roadmap_json));
+      } catch {
+        setHasExistingRoadmap(false);
+      }
     } catch (err) {
       const status = err?.response?.status;
       const detail = err?.response?.data?.detail || "";
@@ -144,7 +152,11 @@ export function SessionSummaryPage() {
       <FeedbackSection summaryData={summaryData} />
 
       {/* 4. Actionable Improvement Plan & Next Steps */}
-      <ImprovementPlan summaryData={summaryData} />
+      <ImprovementPlan
+        summaryData={summaryData}
+        sessionId={session.id || id}
+        hasExistingRoadmap={hasExistingRoadmap}
+      />
 
       {/* 5. Detailed Question-by-Question Accordion Breakdown */}
       <QuestionReviewList answers={answers} />

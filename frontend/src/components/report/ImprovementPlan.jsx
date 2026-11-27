@@ -1,21 +1,59 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
+  AlertCircle,
   ArrowRight,
   BookOpen,
-  CheckCircle2,
   Compass,
   GraduationCap,
+  Loader2,
+  Map,
+  RefreshCw,
   Sparkles,
   Target,
 } from "lucide-react";
+import { generateLearningRoadmap } from "../../api/sessions.api.js";
+import { extractApiError } from "../../utils/apiErrors.js";
 import { Card } from "../ui/Card.jsx";
 import { Badge } from "../ui/Badge.jsx";
 import { Button } from "../ui/Button.jsx";
 
-export function ImprovementPlan({ summaryData }) {
+export function ImprovementPlan({
+  summaryData,
+  sessionId = null,
+  hasExistingRoadmap = false,
+}) {
+  const navigate = useNavigate();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState("");
+
   if (!summaryData) return null;
 
+  const resolvedSessionId = sessionId ?? summaryData?.session?.id;
   const resources = Array.isArray(summaryData.resources) ? summaryData.resources : [];
+
+  async function handleGenerateRoadmap() {
+    if (!resolvedSessionId || isGenerating) return;
+    setIsGenerating(true);
+    setGenerateError("");
+
+    try {
+      const data = await generateLearningRoadmap(resolvedSessionId, {
+        regenerate: false,
+      });
+      navigate(`/sessions/${resolvedSessionId}/learning-roadmap`, {
+        state: { roadmap: data },
+      });
+    } catch (err) {
+      const parsed = extractApiError(
+        err,
+        "Unable to generate your learning roadmap. Please try again."
+      );
+      setGenerateError(parsed.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -128,9 +166,70 @@ export function ImprovementPlan({ summaryData }) {
             </ol>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-border">
+          <div className="mt-6 space-y-3 border-t border-border pt-4">
+            {generateError ? (
+              <div
+                role="alert"
+                className="flex flex-col gap-2 rounded-lg border border-destructive/25 bg-destructive-bg p-3 text-xs text-destructive"
+              >
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span>{generateError}</span>
+                </div>
+                <div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleGenerateRoadmap}
+                    disabled={isGenerating}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Retry</span>
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {resolvedSessionId ? (
+              hasExistingRoadmap ? (
+                <Link
+                  to={`/sessions/${resolvedSessionId}/learning-roadmap`}
+                  className="block w-full"
+                >
+                  <Button variant="primary" size="md" className="w-full">
+                    <Map className="h-4 w-4" aria-hidden="true" />
+                    <span>View Learning Roadmap</span>
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="md"
+                  className="w-full"
+                  isLoading={isGenerating}
+                  disabled={isGenerating}
+                  onClick={handleGenerateRoadmap}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      <span>Generating Learning Roadmap...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" aria-hidden="true" />
+                      <span>Generate Learning Roadmap</span>
+                    </>
+                  )}
+                </Button>
+              )
+            ) : null}
+
             <Link to="/sessions/new" className="block w-full">
-              <Button variant="primary" size="md" className="w-full">
+              <Button variant="secondary" size="md" className="w-full">
                 <span>Start Next Practice Session</span>
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Button>
