@@ -228,6 +228,7 @@ def submit_candidate_answer(
     answer_id: int,
     answer_text: str = "",
     audio_file=None,
+    auto_complete: bool = True,
 ) -> Tuple[Answer, bool]:
     """
     Processes a candidate's text or voice answer using an atomic claim-evaluate-commit lifecycle:
@@ -318,6 +319,9 @@ def submit_candidate_answer(
                         f"Claim ownership lost for Answer #{ans.id}; aborting commit."
                     )
 
+                if not auto_complete:
+                    return False
+
                 remaining = session.answers.filter(processed=False).exists()
                 completed_now = not remaining
                 if completed_now:
@@ -363,6 +367,7 @@ def submit_candidate_answer(
 def skip_candidate_question(
     session: InterviewSession,
     answer_id: Optional[int] = None,
+    auto_complete: bool = True,
 ) -> Tuple[Optional[Answer], bool]:
     """
     Atomically marks the current or specified unanswered question as skipped (score=0, processed=True).
@@ -418,6 +423,9 @@ def skip_candidate_question(
                 raise AnswerCurrentlyProcessingError(
                     f"Answer #{ans.id} is currently being processed and cannot be skipped."
                 )
+
+            if not auto_complete:
+                return False
 
             remaining = session.answers.filter(processed=False).exists()
             completed_now = not remaining

@@ -36,10 +36,14 @@ function StudioSkeleton() {
 export function InterviewStudio({ sessionId }) {
   const {
     session,
+    isAdaptive,
     currentQuestion,
+    currentQuestionKind,
     currentIndex,
     totalQuestions,
     answeredCount,
+    mainQuestionsCount,
+    maxMainQuestions,
     isCompleted,
     isLoading,
     loadError,
@@ -311,9 +315,12 @@ export function InterviewStudio({ sessionId }) {
       {/* 1. Compact Top Navigation */}
       <InterviewHeader
         session={{ ...session, completed: isCompleted }}
+        isAdaptive={isAdaptive}
         currentIndex={currentIndex}
         totalQuestions={totalQuestions}
         answeredCount={answeredCount}
+        mainQuestionsCount={mainQuestionsCount}
+        maxMainQuestions={maxMainQuestions}
         isAvatarConnected={liveAvatar.isConnected}
         isBusy={isBusy}
         onRequestEndInterview={handleRequestEndInterview}
@@ -375,9 +382,11 @@ export function InterviewStudio({ sessionId }) {
             <div className="space-y-4 lg:col-span-5">
               <QuestionDisplay
                 question={currentQuestion}
+                isAdaptive={isAdaptive}
+                questionKind={currentQuestionKind}
                 currentIndex={currentIndex}
                 totalQuestions={totalQuestions}
-                lastEvaluation={lastEvaluation}
+                lastEvaluation={isAdaptive ? null : lastEvaluation}
                 onDismissEvaluation={() => setLastEvaluation(null)}
               />
 

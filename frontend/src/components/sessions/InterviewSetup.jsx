@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Briefcase, FileText } from "lucide-react";
+import { Briefcase, FileText, Sparkles } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
 import { fetchResumes } from "../../api/resumes.api.js";
 import {
+  createAdaptiveSession,
   createResumeJdSession,
   createStandardSession,
 } from "../../api/sessions.api.js";
@@ -119,10 +120,42 @@ export function InterviewSetup() {
     }
   }
 
+  async function handleAdaptiveSubmit(payload) {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setFormError("");
+    setFieldErrors({});
+
+    try {
+      const data = await createAdaptiveSession(payload);
+      const sessionId = data?.session?.id;
+      if (!sessionId) {
+        throw new Error("Session was created without a valid session ID.");
+      }
+
+      showToast({
+        title: "Adaptive interview ready",
+        description: "Your adaptive practice session has been created.",
+        tone: "success",
+      });
+
+      navigate(`/sessions/${sessionId}/interview`);
+    } catch (error) {
+      const parsed = extractApiError(
+        error,
+        "Unable to start the adaptive interview. Please try again."
+      );
+      setFieldErrors(parsed.fieldErrors);
+      setFormError(parsed.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Mode Selection Cards */}
-      <section aria-label="Interview mode selection" className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <section aria-label="Interview mode selection" className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <InterviewModeCard
           icon={Briefcase}
           title="Standard Interview"
@@ -137,10 +170,20 @@ export function InterviewSetup() {
           icon={FileText}
           title="Resume + Job Description"
           badgeText="Personalized"
-          description="Practice questions tailored to your uploaded resume and the exact job description you are applying for."
+          description="Practice adaptive questions grounded in your uploaded resume and target job description, with dynamic follow-ups."
           selected={mode === "resume_jd"}
           disabled={isSubmitting}
           onSelect={() => handleModeChange("resume_jd")}
+        />
+
+        <InterviewModeCard
+          icon={Sparkles}
+          title="Adaptive Interview"
+          badgeText="Dynamic"
+          description="Questions adapt in difficulty based on your responses, with targeted follow-ups when deeper clarification is needed."
+          selected={mode === "adaptive"}
+          disabled={isSubmitting}
+          onSelect={() => handleModeChange("adaptive")}
         />
       </section>
 
@@ -149,6 +192,8 @@ export function InterviewSetup() {
         aria-label={
           mode === "standard"
             ? "Standard interview configuration"
+            : mode === "adaptive"
+            ? "Adaptive interview configuration"
             : "Resume and job description interview configuration"
         }
         className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-8"
@@ -157,12 +202,16 @@ export function InterviewSetup() {
           <h2 className="font-display text-lg font-bold text-slate-900">
             {mode === "standard"
               ? "Configure Standard Interview"
+              : mode === "adaptive"
+              ? "Configure Adaptive Interview"
               : "Configure Resume + Job Description Interview"}
           </h2>
           <p className="mt-1 text-sm text-slate-600">
             {mode === "standard"
               ? "Choose your interview focus, target role, difficulty, and question count."
-              : "Select a saved resume, paste the job description, and set your session preferences."}
+              : mode === "adaptive"
+              ? "Set your focus, target role, starting difficulty, and main question budget."
+              : "Select a saved resume, paste the job description, and set your starting difficulty and main question budget."}
           </p>
         </div>
 
@@ -173,6 +222,17 @@ export function InterviewSetup() {
             formError={formError}
             fieldErrors={fieldErrors}
             onSubmit={handleStandardSubmit}
+          />
+        ) : mode === "adaptive" ? (
+          <StandardInterviewForm
+            defaultJobRole={user?.target_role || "Software Engineer"}
+            isSubmitting={isSubmitting}
+            formError={formError}
+            fieldErrors={fieldErrors}
+            onSubmit={handleAdaptiveSubmit}
+            submitLabel="Start Adaptive Interview"
+            questionCountLabel="Number of main questions"
+            questionCountHint="Choose 1 to 30 main questions. Follow-ups may be asked dynamically."
           />
         ) : (
           <ResumeJDInterviewForm

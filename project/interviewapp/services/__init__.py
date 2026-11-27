@@ -41,6 +41,27 @@ from .video_service import (
     SESSION_VIDEO_STATS,
 )
 from .report_service import build_session_pdf_report
+from .adaptive_service import (
+    AdaptiveAnswerNotFoundError,
+    AdaptiveDecision,
+    AdaptiveNoPendingQuestionError,
+    AdaptivePolicy,
+    AdaptiveProgressionError,
+    AdaptiveProgressionResult,
+    AdaptiveSequentialOrderError,
+    AdaptiveStepInput,
+    DEFAULT_ADAPTIVE_POLICY,
+    advance_adaptive_session_from_answer,
+    compute_next_main_difficulty,
+    create_adaptive_session,
+    decide_next_adaptive_step,
+    is_follow_up_eligible,
+    is_hr_role,
+    is_skipped_answer,
+    skip_adaptive_question,
+    submit_adaptive_answer,
+    validate_adaptive_session_params,
+)
 
 __all__ = [
     "ALLOWED_RESUME_EXTENSIONS",
@@ -65,5 +86,24 @@ __all__ = [
     "get_session_video_metrics",
     "SESSION_VIDEO_STATS",
     "build_session_pdf_report",
+    "AdaptiveAnswerNotFoundError",
+    "AdaptiveDecision",
+    "AdaptiveNoPendingQuestionError",
+    "AdaptivePolicy",
+    "AdaptiveProgressionError",
+    "AdaptiveProgressionResult",
+    "AdaptiveSequentialOrderError",
+    "AdaptiveStepInput",
+    "DEFAULT_ADAPTIVE_POLICY",
+    "advance_adaptive_session_from_answer",
+    "compute_next_main_difficulty",
+    "create_adaptive_session",
+    "decide_next_adaptive_step",
+    "is_follow_up_eligible",
+    "is_hr_role",
+    "is_skipped_answer",
+    "skip_adaptive_question",
+    "submit_adaptive_answer",
+    "validate_adaptive_session_params",
 ]
 

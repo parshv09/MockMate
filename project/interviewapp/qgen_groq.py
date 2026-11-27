@@ -637,17 +637,33 @@ Return valid JSON only.
             key=lambda x: x.get("score", 0),
         )
 
+        def _format_feedback_bullet(text: str, max_len: int = 320) -> str:
+            clean = " ".join((text or "").split())
+            if len(clean) <= max_len:
+                return clean
+            # Prefer ending at a complete sentence within max_len
+            window = clean[:max_len]
+            for sep in (". ", "! ", "? "):
+                idx = window.rfind(sep)
+                if idx >= 80:
+                    return window[: idx + 1].strip()
+            # Fall back to word boundary so we never cut mid-word
+            word_idx = window.rfind(" ")
+            if word_idx >= 80:
+                return window[:word_idx].rstrip(" ,;:-") + "..."
+            return window.rstrip() + "..."
+
         for a in strong_items[:3]:
             fb = (a.get("feedback") or "").strip()
             if fb:
-                strengths.append(fb[:160])
+                strengths.append(_format_feedback_bullet(fb))
             else:
                 strengths.append(f"Demonstrated solid understanding on Question (score {int(round(a.get('score') or 0))}%).")
 
         for a in weak_items[:4]:
             fb = (a.get("feedback") or "").strip()
             if fb and "skip" not in fb.lower():
-                improvements.append(fb[:160])
+                improvements.append(_format_feedback_bullet(fb))
             else:
                 improvements.append("Review core concepts and practice giving concrete, structured examples for weaker answers.")
 
@@ -883,12 +899,27 @@ Return ONLY a valid JSON object with the exact structure:
     }
 
 
-def generate_resume_jd_questions_groq(resume_text: str, job_description: str, n: int = 5, difficulty: int = 3) -> list:
+def generate_resume_jd_questions_groq(
+    resume_text: str,
+    job_description: str,
+    n: int = 5,
+    difficulty: int = 3,
+    previous_questions: Optional[List[str]] = None,
+) -> list:
     """
     Generate tailored interview questions based on candidate's resume and job description.
     """
     r_snippet = (resume_text or "General background in software and technology.")[:4000]
     jd_snippet = (job_description or "General software engineering role.")[:4000]
+
+    avoid_clause = ""
+    prev_sigs = set()
+    if previous_questions:
+        clean_prev = [str(p).strip() for p in previous_questions if str(p).strip()]
+        if clean_prev:
+            prev_sigs = {signature_of_text(p) for p in clean_prev}
+            avoid_lines = "\n".join(f"  * {p}" for p in clean_prev[:15])
+            avoid_clause = f"\n- Do NOT repeat or paraphrase any previously asked questions:\n{avoid_lines}\n"
     
     diff_val = int(difficulty or 3)
     if diff_val <= 2:
@@ -914,7 +945,7 @@ Generate exactly {n} interview questions specifically tailored to this candidate
 
 RULES:
 - Questions MUST match the specified difficulty level: {level_desc}.
-- Questions must reference the candidate's actual projects and skills mentioned in their resume against the job description.
+- Questions must reference the candidate's actual projects and skills mentioned in their resume against the job description.{avoid_clause}
 - Do NOT output extra text or markdown wrappers. Output ONLY a valid JSON array of objects.
 
 JSON FORMAT:
@@ -933,6 +964,15 @@ JSON FORMAT:
         if start != -1 and end > start:
             parsed = json.loads(response[start:end+1])
             if isinstance(parsed, list) and len(parsed) > 0:
+                if prev_sigs:
+                    filtered = [
+                        item for item in parsed
+                        if isinstance(item, dict)
+                        and (item.get("text") or "").strip()
+                        and signature_of_text(item["text"]) not in prev_sigs
+                    ]
+                    if filtered:
+                        return filtered[:n]
                 return parsed[:n]
     except Exception as e:
         logging.getLogger(__name__).exception("Failed to generate Resume/JD questions: %s", e)
@@ -954,5 +994,102 @@ JSON FORMAT:
             "difficulty": difficulty
         }
     ]
+
+
+def generate_follow_up_question_groq(
+    original_question_text: str,
+    candidate_answer: str,
+    role: str,
+    job_role: str,
+    difficulty: int = 3,
+    previous_questions: Optional[List[str]] = None,
+    model: Optional[str] = None,
+    resume_chunks: Optional[List[Dict]] = None,
+    job_description: str = "",
+) -> Optional[Dict]:
+    """
+    Generates ONE contextual follow-up question based on the original main question
+    and the candidate's submitted answer, matching the original difficulty and role.
+    Optionally grounds the follow-up in retrieved resume evidence and job description.
+    Returns a validated question dict or None if generation/validation fails.
+    """
+    diff_val = max(1, min(5, int(difficulty or 3)))
+    orig_q = (original_question_text or "").strip()[:1000]
+    cand_ans = (candidate_answer or "").strip()[:1500]
+    role_lower = (role or "").strip().lower()
+    is_hr = "human resources" in role_lower or role_lower == "hr"
+
+    avoid_lines = [orig_q] + [str(p).strip() for p in (previous_questions or []) if str(p).strip()]
+    avoid_clause = "\n".join(f"  * {q}" for q in avoid_lines[:15])
+
+    difficulty_line = (
+        "Standard conversational HR depth."
+        if is_hr
+        else f"Target Difficulty: Level {diff_val}/5."
+    )
+
+    context_blocks = ""
+    jd_clean = (job_description or "").strip()
+    if jd_clean:
+        context_blocks += f"\nTarget Job Description:\n{jd_clean[:1200]}\n"
+    if resume_chunks:
+        excerpts = []
+        for idx, chunk in enumerate(resume_chunks, 1):
+            c_text = (chunk.get("text") or "").strip()
+            if c_text:
+                excerpts.append(f"[Resume Excerpt {idx}]: {c_text[:500]}")
+        if excerpts:
+            context_blocks += "\nCandidate Resume Evidence:\n" + "\n".join(excerpts) + "\n"
+
+    prompt = f"""
+You are an expert interviewer conducting a {role} interview for a "{job_role}" candidate.
+{difficulty_line}
+{context_blocks}
+Original Question:
+{orig_q}
+
+Candidate's Answer:
+{cand_ans}
+
+TASK:
+Generate EXACTLY 1 concise follow-up question that:
+- Builds directly on the original question and the candidate's answer.
+- Probes for clarification, deeper reasoning, edge cases, or missing evidence.
+- Stays relevant to the "{role}" focus and "{job_role}" role.
+- Matches the original difficulty ({diff_val}/5).
+- Does NOT repeat or paraphrase the original question or any previously asked question:
+{avoid_clause}
+
+Return ONLY a valid JSON array containing 1 object:
+[
+  {{
+    "text": "The follow-up question text",
+    "keywords": "keyword1,keyword2,keyword3",
+    "difficulty": {diff_val},
+    "type": "reasoning"
+  }}
+]
+"""
+    try:
+        out = _call_groq_chat(prompt, model=model, temperature=0.4, max_tokens=600)
+        parsed = _extract_json_array_from_text(out)
+    except Exception as exc:
+        logger.exception("Groq follow-up generation failed: %s", exc)
+        return None
+
+    orig_sig = signature_of_text(orig_q) if orig_q else ""
+    prev_sigs = {signature_of_text(p) for p in avoid_lines if p}
+    for obj in parsed:
+        validated = _validate_question_obj(obj)
+        if not validated:
+            continue
+        validated["difficulty"] = diff_val
+        cand_sig = signature_of_text(validated["text"])
+        if cand_sig == orig_sig or cand_sig in prev_sigs:
+            continue
+        return validated
+
+    return None
+
 
 

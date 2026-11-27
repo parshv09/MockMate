@@ -5,11 +5,14 @@ import { apiClient } from "./client.js";
  */
 export const SESSION_ENDPOINTS = {
   listCreate: "/sessions/",
+  createAdaptive: "/sessions/adaptive/",
   createResumeJd: "/sessions/resume-jd/",
   detail: (id) => `/sessions/${id}/`,
   nextQuestion: (id) => `/sessions/${id}/next-question/`,
   answers: (id) => `/sessions/${id}/answers/`,
+  adaptiveAnswers: (id) => `/sessions/${id}/adaptive/answers/`,
   skipQuestion: (id) => `/sessions/${id}/skip/`,
+  adaptiveSkip: (id) => `/sessions/${id}/adaptive/skip/`,
   endSession: (id) => `/sessions/${id}/end/`,
   summary: (id) => `/sessions/${id}/summary/`,
   reportDownload: (id) => `/sessions/${id}/report/`,
@@ -27,6 +30,21 @@ export async function createStandardSession({
   n_questions = 5,
 }) {
   const response = await apiClient.post(SESSION_ENDPOINTS.listCreate, {
+    role,
+    job_role,
+    difficulty: Number(difficulty),
+    n_questions: Number(n_questions),
+  });
+  return response.data;
+}
+
+export async function createAdaptiveSession({
+  role = "tech",
+  job_role = "Software Engineer",
+  difficulty = 3,
+  n_questions = 5,
+}) {
+  const response = await apiClient.post(SESSION_ENDPOINTS.createAdaptive, {
     role,
     job_role,
     difficulty: Number(difficulty),
@@ -118,6 +136,53 @@ export async function fetchSessionAnswers(sessionId) {
 /** POST /sessions/<id>/skip/ → { message, is_session_completed, answer, next_question } */
 export async function skipQuestion(sessionId, { answerId = null } = {}) {
   const response = await apiClient.post(SESSION_ENDPOINTS.skipQuestion(sessionId), {
+    answer_id: answerId ?? null,
+  });
+  return response.data;
+}
+
+/** POST /sessions/<id>/adaptive/answers/ */
+export async function submitAdaptiveAnswer(
+  sessionId,
+  {
+    answerId = null,
+    answerText = "",
+    audioBlob = null,
+    audioFilename = "",
+    onUploadProgress,
+  } = {}
+) {
+  if (audioBlob) {
+    const formData = new FormData();
+    if (answerId !== null && answerId !== undefined) {
+      formData.append("answer_id", String(answerId));
+    }
+    if (answerText.trim()) {
+      formData.append("answer_text", answerText.trim());
+    }
+    formData.append("audio_file", audioBlob, audioFilename || "answer.webm");
+    const response = await apiClient.post(
+      SESSION_ENDPOINTS.adaptiveAnswers(sessionId),
+      formData,
+      onUploadProgress ? { onUploadProgress } : undefined
+    );
+    return response.data;
+  }
+
+  const response = await apiClient.post(
+    SESSION_ENDPOINTS.adaptiveAnswers(sessionId),
+    {
+      answer_id: answerId ?? null,
+      answer_text: answerText.trim(),
+    },
+    onUploadProgress ? { onUploadProgress } : undefined
+  );
+  return response.data;
+}
+
+/** POST /sessions/<id>/adaptive/skip/ */
+export async function skipAdaptiveQuestion(sessionId, { answerId = null } = {}) {
+  const response = await apiClient.post(SESSION_ENDPOINTS.adaptiveSkip(sessionId), {
     answer_id: answerId ?? null,
   });
   return response.data;

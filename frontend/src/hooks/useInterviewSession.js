@@ -4,7 +4,9 @@ import {
   endSession,
   fetchNextQuestion,
   fetchSessionDetail,
+  skipAdaptiveQuestion,
   skipQuestion,
+  submitAdaptiveAnswer,
   submitAnswer,
 } from "../api/sessions.api.js";
 import { useToast } from "../context/ToastContext.jsx";
@@ -28,7 +30,12 @@ export function useInterviewSession(sessionId) {
   const [currentIndex, setCurrentIndex] = useState(1);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [answeredCount, setAnsweredCount] = useState(0);
+  const [currentQuestionKind, setCurrentQuestionKind] = useState(null);
+  const [mainQuestionsCount, setMainQuestionsCount] = useState(0);
+  const [maxMainQuestions, setMaxMainQuestions] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
+
+  const isAdaptive = session?.state === "adaptive";
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -65,15 +72,26 @@ export function useInterviewSession(sessionId) {
 
       setTotalQuestions(total);
       setAnsweredCount(answered);
+      setMainQuestionsCount(sessionData?.main_questions_count ?? 0);
+      setMaxMainQuestions(sessionData?.max_main_questions ?? 0);
       setIsCompleted(completed);
 
-      if (nextData?.has_next_question && nextData?.question) {
+      if (completed) {
+        setCurrentQuestion(null);
+        setCurrentAnswerId(null);
+        setCurrentQuestionKind(null);
+        setCurrentIndex(total || 1);
+      } else if (nextData?.has_next_question && nextData?.question) {
         setCurrentQuestion(nextData.question);
         setCurrentAnswerId(nextData.answer_id ?? null);
+        setCurrentQuestionKind(
+          nextData.question_kind || (sessionData?.state === "adaptive" ? "main" : null)
+        );
         setCurrentIndex(nextData.current_index ?? answered + 1);
       } else {
         setCurrentQuestion(null);
         setCurrentAnswerId(null);
+        setCurrentQuestionKind(null);
         setCurrentIndex(total || 1);
       }
     } catch (error) {
@@ -102,7 +120,8 @@ export function useInterviewSession(sessionId) {
       setIsSubmitting(true);
 
       try {
-        const data = await submitAnswer(sessionId, {
+        const submitFn = isAdaptive ? submitAdaptiveAnswer : submitAnswer;
+        const data = await submitFn(sessionId, {
           answerId: currentAnswerId,
           answerText,
           audioBlob,
@@ -121,13 +140,26 @@ export function useInterviewSession(sessionId) {
           data?.is_session_completed || !data?.next_question
         );
 
-        setLastEvaluation(evaluatedAnswer);
+        // Adaptive interviews defer detailed evaluation display until Session Summary
+        if (!isAdaptive) {
+          setLastEvaluation(evaluatedAnswer);
+        }
         setAnsweredCount((prev) => prev + 1);
+        if (typeof data?.total_interactions === "number") {
+          setTotalQuestions(data.total_interactions);
+        }
+        if (typeof data?.main_questions_count === "number") {
+          setMainQuestionsCount(data.main_questions_count);
+        }
+        if (typeof data?.max_main_questions === "number") {
+          setMaxMainQuestions(data.max_main_questions);
+        }
 
         if (sessionDone) {
           setIsCompleted(true);
           setCurrentQuestion(null);
           setCurrentAnswerId(null);
+          setCurrentQuestionKind(null);
           showToast({
             title: "Interview completed",
             description: "All questions have been answered. Loading your summary...",
@@ -137,6 +169,9 @@ export function useInterviewSession(sessionId) {
         } else {
           setCurrentQuestion(data.next_question);
           setCurrentAnswerId(null);
+          setCurrentQuestionKind(
+            data?.next_question_kind ?? (isAdaptive ? "main" : null)
+          );
           setCurrentIndex((prev) =>
             typeof evaluatedAnswer?.index === "number"
               ? evaluatedAnswer.index + 1
@@ -163,6 +198,7 @@ export function useInterviewSession(sessionId) {
     },
     [
       currentAnswerId,
+      isAdaptive,
       isCompleted,
       isEnding,
       isSkipping,
@@ -183,7 +219,8 @@ export function useInterviewSession(sessionId) {
     setAnswerError("");
 
     try {
-      const data = await skipQuestion(sessionId, {
+      const skipFn = isAdaptive ? skipAdaptiveQuestion : skipQuestion;
+      const data = await skipFn(sessionId, {
         answerId: currentAnswerId,
       });
 
@@ -192,13 +229,25 @@ export function useInterviewSession(sessionId) {
         data?.is_session_completed || !data?.next_question
       );
 
-      setLastEvaluation(skippedAnswer);
+      if (!isAdaptive) {
+        setLastEvaluation(skippedAnswer);
+      }
       setAnsweredCount((prev) => prev + 1);
+      if (typeof data?.total_interactions === "number") {
+        setTotalQuestions(data.total_interactions);
+      }
+      if (typeof data?.main_questions_count === "number") {
+        setMainQuestionsCount(data.main_questions_count);
+      }
+      if (typeof data?.max_main_questions === "number") {
+        setMaxMainQuestions(data.max_main_questions);
+      }
 
       if (sessionDone) {
         setIsCompleted(true);
         setCurrentQuestion(null);
         setCurrentAnswerId(null);
+        setCurrentQuestionKind(null);
         showToast({
           title: "Interview completed",
           description: "Moving to your session summary.",
@@ -208,6 +257,9 @@ export function useInterviewSession(sessionId) {
       } else {
         setCurrentQuestion(data.next_question);
         setCurrentAnswerId(null);
+        setCurrentQuestionKind(
+          data?.next_question_kind ?? (isAdaptive ? "main" : null)
+        );
         setCurrentIndex((prev) =>
           typeof skippedAnswer?.index === "number"
             ? skippedAnswer.index + 1
@@ -233,6 +285,7 @@ export function useInterviewSession(sessionId) {
     }
   }, [
     currentAnswerId,
+    isAdaptive,
     isCompleted,
     isEnding,
     isSkipping,
@@ -284,11 +337,15 @@ export function useInterviewSession(sessionId) {
 
   return {
     session,
+    isAdaptive,
     currentQuestion,
+    currentQuestionKind,
     currentAnswerId,
     currentIndex,
     totalQuestions,
     answeredCount,
+    mainQuestionsCount,
+    maxMainQuestions,
     isCompleted,
     isLoading,
     loadError,

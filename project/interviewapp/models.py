@@ -64,6 +64,7 @@ class InterviewSession(models.Model):
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
     total_questions = models.IntegerField(default=0)  # Track total questions
+    max_main_questions = models.IntegerField(default=0)
     video_stats_json = models.JSONField(null=True, blank=True)
     video_feedback_json = models.JSONField(null=True, blank=True)
     @property
@@ -95,6 +96,13 @@ class Answer(models.Model):
 
     session = models.ForeignKey(InterviewSession, on_delete=models.CASCADE, related_name='answers')
     question = models.ForeignKey(GeneratedQuestion, on_delete=models.SET_NULL, null=True)
+    parent_answer = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="follow_ups",
+    )
     index = models.IntegerField()
     answer_text = models.TextField(blank=True)
     audio_file = models.FileField(upload_to="voice_answers/", null=True, blank=True)

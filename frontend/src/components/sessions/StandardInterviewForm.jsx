@@ -24,6 +24,9 @@ export function StandardInterviewForm({
   formError = "",
   fieldErrors = {},
   onSubmit,
+  submitLabel = "Start Standard Interview",
+  questionCountLabel = "Number of questions",
+  questionCountHint = "Choose between 1 and 30 questions.",
 }) {
   const [role, setRole] = useState("tech");
   const [jobRole, setJobRole] = useState(defaultJobRole || "Software Engineer");
@@ -166,7 +169,7 @@ export function StandardInterviewForm({
             htmlFor="standard-n-questions"
             className="block text-sm font-medium text-foreground"
           >
-            Number of questions
+            {questionCountLabel}
           </label>
           <input
             id="standard-n-questions"
@@ -184,7 +187,7 @@ export function StandardInterviewForm({
             disabled={isSubmitting}
             className="block w-full rounded-md border border-border-strong bg-surface px-3.5 py-2.5 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:opacity-60"
           />
-          <p className="text-xs text-foreground-muted">Choose between 1 and 30 questions.</p>
+          <p className="text-xs text-foreground-muted">{questionCountHint}</p>
           {mergedErrors.n_questions ? (
             <p role="alert" className="text-xs font-medium text-destructive">
               {mergedErrors.n_questions}
@@ -210,7 +213,7 @@ export function StandardInterviewForm({
           ) : (
             <>
               <PlayCircle className="h-4 w-4" aria-hidden="true" />
-              <span>Start Standard Interview</span>
+              <span>{submitLabel}</span>
             </>
           )}
         </Button>

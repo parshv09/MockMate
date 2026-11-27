@@ -12,6 +12,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ...models import InterviewSession
+from ...services.adaptive_service import (
+    AdaptiveAnswerNotFoundError,
+    AdaptiveNoPendingQuestionError,
+    AdaptiveSequentialOrderError,
+    create_adaptive_session,
+    skip_adaptive_question,
+    submit_adaptive_answer,
+)
 from ...services.answer_service import (
     AnswerAlreadyProcessedError,
     AnswerClaimLostError,
@@ -30,6 +38,7 @@ from ...services.session_service import (
 )
 from ..permissions import IsOwner
 from ..serializers.session_serializers import (
+    AdaptiveSessionCreateSerializer,
     AnswerEvaluatedSerializer,
     AnswerSubmitSerializer,
     QuestionPublicSerializer,
@@ -142,12 +151,23 @@ class SessionResumeJDCreateAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        first_ans = session.answers.select_related("question").order_by("index").first()
+        next_q_data = (
+            QuestionPublicSerializer(first_ans.question).data
+            if (first_ans and first_ans.question)
+            else None
+        )
         detail_data = SessionDetailSerializer(session, context={"request": request}).data
         return Response(
             {
                 "message": "Resume & JD tailored interview session created successfully.",
                 "created_questions": created_count,
                 "session": detail_data,
+                "next_question": next_q_data,
+                "next_question_kind": "main" if next_q_data else None,
+                "main_questions_count": detail_data.get("main_questions_count", 1),
+                "max_main_questions": session.max_main_questions,
+                "total_interactions": session.total_questions,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -205,6 +225,7 @@ class SessionNextQuestionAPIView(APIView):
             )
 
         q_data = QuestionPublicSerializer(next_ans.question).data if next_ans.question else None
+        q_kind = "follow_up" if next_ans.parent_answer_id is not None else "main"
 
         return Response(
             {
@@ -214,6 +235,7 @@ class SessionNextQuestionAPIView(APIView):
                 "total_questions": session.total_questions,
                 "answer_id": next_ans.id,
                 "question": q_data,
+                "question_kind": q_kind,
             },
             status=status.HTTP_200_OK,
         )
@@ -578,4 +600,218 @@ class SessionReportDownloadAPIView(APIView):
         response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="AI_Interview_Report_{session.id}.pdf"'
         return response
+
+
+def _build_adaptive_progression_response(result, message: str) -> Response:
+    """Formats a consistent response payload for adaptive answer submit & skip endpoints."""
+    next_q_data = (
+        QuestionPublicSerializer(result.next_answer.question).data
+        if (result.next_answer is not None and result.next_answer.question is not None)
+        else None
+    )
+    return Response(
+        {
+            "message": message,
+            "session_id": result.answer.session_id,
+            "is_session_completed": result.is_session_completed,
+            "answer": AnswerEvaluatedSerializer(result.answer).data,
+            "next_question": next_q_data,
+            "next_question_kind": result.next_question_kind,
+            "main_questions_count": result.main_questions_count,
+            "max_main_questions": result.max_main_questions,
+            "total_interactions": result.total_interactions,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+class SessionAdaptiveCreateAPIView(APIView):
+    """
+    POST /api/v1/sessions/adaptive/
+      Creates a new Hybrid Adaptive interview session with only the first main question.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AdaptiveSessionCreateSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        role = serializer.validated_data["role"]
+        job_role = serializer.validated_data["job_role"]
+        difficulty = serializer.validated_data["difficulty"]
+        n_questions = serializer.validated_data["n_questions"]
+
+        try:
+            session, created_count = create_adaptive_session(
+                user=request.user,
+                raw_role=role,
+                job_role=job_role,
+                difficulty=difficulty,
+                max_main_questions=n_questions,
+            )
+        except ValueError as val_err:
+            return Response({"detail": str(val_err)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            logger.exception("Failed to initialize adaptive session for user %s: %s", request.user.id, exc)
+            return Response(
+                {"detail": "Failed to initialize adaptive interview session. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        first_ans = session.answers.select_related("question").order_by("index").first()
+        next_q_data = (
+            QuestionPublicSerializer(first_ans.question).data
+            if (first_ans and first_ans.question)
+            else None
+        )
+        detail_data = SessionDetailSerializer(session, context={"request": request}).data
+        return Response(
+            {
+                "message": "Adaptive interview session created successfully.",
+                "created_questions": created_count,
+                "session": detail_data,
+                "next_question": next_q_data,
+                "next_question_kind": "main" if next_q_data else None,
+                "main_questions_count": detail_data.get("main_questions_count", 1),
+                "max_main_questions": session.max_main_questions,
+                "total_interactions": session.total_questions,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class SessionAdaptiveAnswerSubmitAPIView(APIView):
+    """
+    POST /api/v1/sessions/<id>/adaptive/answers/
+      Submits an answer in an adaptive session, evaluates via `submit_candidate_answer(..., auto_complete=False)`,
+      runs the adaptive decision engine, and appends a follow-up / next main question or completes.
+    """
+
+    permission_classes = [IsAuthenticated, IsOwner]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_object(self, request, pk):
+        session = get_object_or_404(InterviewSession, pk=pk, user=request.user)
+        self.check_object_permissions(request, session)
+        return session
+
+    def post(self, request, pk):
+        session = self.get_object(request, pk)
+        if session.state != "adaptive":
+            return Response(
+                {"detail": "This endpoint is only available for adaptive interview sessions."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = AnswerSubmitSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        answer_id = serializer.validated_data.get("answer_id")
+        if session.completed and answer_id is None:
+            return Response(
+                {"detail": "This interview session has already been completed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        answer_text = serializer.validated_data.get("answer_text", "")
+        audio_file = serializer.validated_data.get("audio_file")
+
+        try:
+            result = submit_adaptive_answer(
+                session=session,
+                answer_id=answer_id,
+                answer_text=answer_text,
+                audio_file=audio_file,
+            )
+        except AnswerAlreadyProcessedError:
+            return Response(
+                {"detail": "This question has already been answered and processed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except (AdaptiveAnswerNotFoundError, AdaptiveSequentialOrderError, AdaptiveNoPendingQuestionError) as err:
+            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+        except (AnswerCurrentlyProcessingError, AnswerClaimLostError):
+            return Response(
+                {"detail": "This answer is currently being processed by another request."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except AnswerDatabaseContentionError:
+            return Response(
+                {"detail": "The server is temporarily busy processing your answer. Please try again."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except Exception as exc:
+            logger.exception("Adaptive answer submission failed for session #%s: %s", session.id, exc)
+            return Response(
+                {"detail": "Failed to process adaptive answer submission. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return _build_adaptive_progression_response(
+            result, "Answer submitted and evaluated successfully."
+        )
+
+
+class SessionAdaptiveQuestionSkipAPIView(APIView):
+    """
+    POST /api/v1/sessions/<id>/adaptive/skip/
+      Skips the current question in an adaptive session and advances via the adaptive decision engine.
+    """
+
+    permission_classes = [IsAuthenticated, IsOwner]
+
+    def get_object(self, request, pk):
+        session = get_object_or_404(InterviewSession, pk=pk, user=request.user)
+        self.check_object_permissions(request, session)
+        return session
+
+    def post(self, request, pk):
+        session = self.get_object(request, pk)
+        if session.state != "adaptive":
+            return Response(
+                {"detail": "This endpoint is only available for adaptive interview sessions."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = QuestionSkipSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+
+        answer_id = serializer.validated_data.get("answer_id")
+        if session.completed and answer_id is None:
+            return Response(
+                {"detail": "This interview session has already been completed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            result = skip_adaptive_question(session=session, answer_id=answer_id)
+        except AnswerAlreadyProcessedError:
+            return Response(
+                {"detail": "This question has already been answered or skipped."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except (AdaptiveAnswerNotFoundError, AdaptiveSequentialOrderError, AdaptiveNoPendingQuestionError) as err:
+            return Response({"detail": str(err)}, status=status.HTTP_400_BAD_REQUEST)
+        except AnswerCurrentlyProcessingError:
+            return Response(
+                {"detail": "This question is currently being processed and cannot be skipped."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        except AnswerDatabaseContentionError:
+            return Response(
+                {"detail": "The server is temporarily busy. Please try again."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except Exception as exc:
+            logger.exception("Adaptive question skip failed for session #%s: %s", session.id, exc)
+            return Response(
+                {"detail": "Failed to skip question. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return _build_adaptive_progression_response(
+            result, "Question skipped successfully."
+        )
+
 

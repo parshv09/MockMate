@@ -578,6 +578,31 @@ describe("Live Interview Studio (/sessions/:id/interview)", () => {
       message: "Interview session ended successfully.",
       session: { ...SAMPLE_SESSION, completed: true, is_completed: true },
     });
+    const summarySpy = vi.spyOn(sessionsApi, "fetchSessionSummary").mockResolvedValueOnce({
+      session: { ...SAMPLE_SESSION, completed: true, is_completed: true },
+      average_score: 82,
+      content_quality_score: 82,
+      completion_rate: 33,
+      duration_minutes: 4,
+      strengths: ["Clear explanation of atomic transactions."],
+      improvements: ["Include concrete rollback examples."],
+      overall_tip: "Keep structuring answers around real-world trade-offs.",
+      resources: [],
+      answers: [
+        {
+          id: 501,
+          index: 1,
+          question: QUESTION_1.question,
+          answer_text: "Atomic blocks wrap DB operations in a single transaction.",
+          score: 82,
+          feedback: "Solid explanation.",
+          improvement_tips: [],
+          expected_answer: "Explain savepoints and rollback semantics.",
+          processed: true,
+          has_audio: false,
+        },
+      ],
+    });
 
     renderWorkspace(42);
     await screen.findByRole("heading", {
@@ -589,8 +614,12 @@ describe("Live Interview Studio (/sessions/:id/interview)", () => {
     await user.click(within(dialog).getByRole("button", { name: /end interview/i }));
 
     await waitFor(() => expect(endSpy).toHaveBeenCalledWith("42"));
+    await waitFor(() => expect(summarySpy).toHaveBeenCalledWith("42"));
     expect(
-      await screen.findByRole("heading", { name: /executive performance report/i })
+      await screen.findByRole("heading", { name: /performance overview/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /download pdf report/i })
     ).toBeInTheDocument();
   });
 

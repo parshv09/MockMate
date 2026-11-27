@@ -195,7 +195,7 @@ export function ResumeJDInterviewForm({
             htmlFor="resume-jd-n-questions"
             className="block text-sm font-medium text-foreground"
           >
-            Number of questions
+            Number of main questions
           </label>
           <input
             id="resume-jd-n-questions"
@@ -213,7 +213,9 @@ export function ResumeJDInterviewForm({
             disabled={isSubmitting}
             className="block w-full rounded-md border border-border-strong bg-surface px-3.5 py-2.5 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:opacity-60"
           />
-          <p className="text-xs text-foreground-muted">Choose between 1 and 30 questions.</p>
+          <p className="text-xs text-foreground-muted">
+            Choose 1 to 30 main questions. Follow-up questions may be generated adaptively.
+          </p>
           {mergedFieldErrors.n_questions ? (
             <p role="alert" className="text-xs font-medium text-destructive">
               {mergedFieldErrors.n_questions}

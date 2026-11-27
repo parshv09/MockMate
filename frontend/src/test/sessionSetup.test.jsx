@@ -162,7 +162,7 @@ describe("Interview Setup (/sessions/new)", () => {
       "Senior Django & PostgreSQL Engineer"
     );
     await user.selectOptions(screen.getByLabelText(/difficulty level/i), "5");
-    const countInput = screen.getByLabelText(/number of questions/i);
+    const countInput = screen.getByLabelText(/number of main questions/i);
     await user.clear(countInput);
     await user.type(countInput, "6");
 

@@ -200,7 +200,11 @@ def create_resume_jd_session(
     resume_file=None,
     pasted_resume: str = "",
 ) -> Tuple[Optional[InterviewSession], int]:
-    """Creates an interview session tailored to candidate's Resume and Job Description."""
+    """
+    Creates an adaptive interview session tailored to the candidate's Resume and Job Description.
+    Generates only the first main question (index=1, parent_answer=None) and stores
+    max_main_questions=n_questions so subsequent questions adapt dynamically.
+    """
     newly_created_resume = False
     # Resolve or create resume
     if not resume_obj:
@@ -215,6 +219,9 @@ def create_resume_jd_session(
 
     if not resume_obj and not job_description:
         return None, 0
+
+    clean_diff = max(1, min(5, int(difficulty or 3)))
+    clean_max_main = max(1, min(30, int(n_questions or 5)))
 
     job_role = "Resume & JD Specific Match"
     if job_description:
@@ -238,8 +245,8 @@ def create_resume_jd_session(
                 llm_questions = generate_resume_jd_rag_questions(
                     resume_obj=resume_obj,
                     job_description=job_description,
-                    n=n_questions,
-                    difficulty=difficulty,
+                    n=1,
+                    difficulty=clean_diff,
                     previous_questions=prev_questions,
                 )
             else:
@@ -247,8 +254,9 @@ def create_resume_jd_session(
                 llm_questions = generate_resume_jd_questions_groq(
                     resume_text=fallback_text,
                     job_description=job_description,
-                    n=n_questions,
-                    difficulty=difficulty,
+                    n=1,
+                    difficulty=clean_diff,
+                    previous_questions=prev_questions,
                 )
         except Exception as e:
             logger.exception("Resume/JD question generation error (rag=%s): %s", rag_enabled, e)
@@ -259,12 +267,14 @@ def create_resume_jd_session(
                 user=user,
                 resume=resume_obj,
                 job_description=job_description,
-                total_questions=n_questions,
+                state="adaptive",
+                max_main_questions=clean_max_main,
+                total_questions=1,
                 role="tech",
                 job_role=job_role,
-                difficulty=difficulty,
+                difficulty=clean_diff,
                 total_score=None,
-                current_index=0,
+                current_index=1,
             )
 
             created_count = populate_session_questions(
@@ -272,8 +282,9 @@ def create_resume_jd_session(
                 questions_data=llm_questions,
                 raw_role="tech",
                 question_source=question_source,
-                n=n_questions,
-                difficulty=difficulty,
+                n=1,
+                difficulty=clean_diff,
+                job_role=job_role,
             )
     except Exception as exc:
         logger.exception("Failed to initialize resume/JD interview session: %s", exc)
@@ -381,7 +392,11 @@ def get_session_summary_data(session: InterviewSession) -> Dict:
     improvements: List[str] = []
     for a in answers:
         fb = (a.feedback or "").lower()
-        snippet = a.question.text[:70] + ("..." if len(a.question.text) > 70 else "")
+        snippet = (
+            a.question.text[:70] + ("..." if len(a.question.text) > 70 else "")
+            if a.question
+            else f"Question #{a.index}"
+        )
         if fb:
             if "good" in fb or "excellent" in fb or "well" in fb:
                 strengths.append(f"Strong answer to: {snippet}")
