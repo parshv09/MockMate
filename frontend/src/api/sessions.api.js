@@ -15,6 +15,7 @@ export const SESSION_ENDPOINTS = {
   adaptiveSkip: (id) => `/sessions/${id}/adaptive/skip/`,
   endSession: (id) => `/sessions/${id}/end/`,
   summary: (id) => `/sessions/${id}/summary/`,
+  learningRoadmap: (id) => `/sessions/${id}/learning-roadmap/`,
   reportDownload: (id) => `/sessions/${id}/report/`,
 };
 
@@ -197,6 +198,20 @@ export async function endSession(sessionId) {
 /** GET /sessions/<id>/summary/ → SessionSummarySerializer (only after completion) */
 export async function fetchSessionSummary(sessionId) {
   const response = await apiClient.get(SESSION_ENDPOINTS.summary(sessionId));
+  return response.data;
+}
+
+/** GET /sessions/<id>/learning-roadmap/ → LearningRoadmapSerializer (404 if not generated) */
+export async function fetchLearningRoadmap(sessionId) {
+  const response = await apiClient.get(SESSION_ENDPOINTS.learningRoadmap(sessionId));
+  return response.data;
+}
+
+/** POST /sessions/<id>/learning-roadmap/ → LearningRoadmapSerializer */
+export async function generateLearningRoadmap(sessionId, { regenerate = false } = {}) {
+  const response = await apiClient.post(SESSION_ENDPOINTS.learningRoadmap(sessionId), {
+    regenerate: Boolean(regenerate),
+  });
   return response.data;
 }
 

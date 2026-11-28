@@ -90,6 +90,9 @@ describe("Adaptive Interview Frontend Integration", () => {
     vi.spyOn(resumesApi, "fetchResumes").mockResolvedValue([]);
     vi.spyOn(sessionsApi, "fetchSessionDetail").mockResolvedValue(ADAPTIVE_SESSION);
     vi.spyOn(sessionsApi, "fetchNextQuestion").mockResolvedValue(ADAPTIVE_Q1);
+    vi.spyOn(sessionsApi, "fetchLearningRoadmap").mockRejectedValue({
+      response: { status: 404, data: { detail: "Not found" } },
+    });
     const createAdaptiveSpy = vi
       .spyOn(sessionsApi, "createAdaptiveSession")
       .mockResolvedValueOnce({
@@ -135,6 +138,9 @@ describe("Adaptive Interview Frontend Integration", () => {
     const user = userEvent.setup();
     vi.spyOn(sessionsApi, "fetchSessionDetail").mockResolvedValue(ADAPTIVE_SESSION);
     vi.spyOn(sessionsApi, "fetchNextQuestion").mockResolvedValue(ADAPTIVE_Q1);
+    vi.spyOn(sessionsApi, "fetchLearningRoadmap").mockRejectedValue({
+      response: { status: 404, data: { detail: "Not found" } },
+    });
     const summarySpy = vi.spyOn(sessionsApi, "fetchSessionSummary").mockResolvedValue({
       session: { ...ADAPTIVE_SESSION, completed: true, is_completed: true, total_questions: 3 },
       average_score: 75,

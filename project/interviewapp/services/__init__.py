@@ -41,6 +41,14 @@ from .video_service import (
     SESSION_VIDEO_STATS,
 )
 from .report_service import build_session_pdf_report
+from .roadmap_service import (
+    RoadmapError,
+    RoadmapGenerationInProgressError,
+    RoadmapSessionIncompleteError,
+    analyze_session_skill_gaps,
+    generate_learning_roadmap_for_session,
+    get_learning_roadmap,
+)
 from .adaptive_service import (
     AdaptiveAnswerNotFoundError,
     AdaptiveDecision,
@@ -86,6 +94,12 @@ __all__ = [
     "get_session_video_metrics",
     "SESSION_VIDEO_STATS",
     "build_session_pdf_report",
+    "RoadmapError",
+    "RoadmapGenerationInProgressError",
+    "RoadmapSessionIncompleteError",
+    "analyze_session_skill_gaps",
+    "generate_learning_roadmap_for_session",
+    "get_learning_roadmap",
     "AdaptiveAnswerNotFoundError",
     "AdaptiveDecision",
     "AdaptiveNoPendingQuestionError",

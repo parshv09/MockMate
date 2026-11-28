@@ -154,3 +154,20 @@ class SessionQuestion(models.Model):
     
     def __str__(self):
         return f"Session {self.session.id} - Q{self.order}"
+
+
+class LearningRoadmap(models.Model):
+    """Stores deterministic skill-gap analysis and AI-generated learning roadmap for a completed session."""
+
+    session = models.OneToOneField(
+        InterviewSession,
+        on_delete=models.CASCADE,
+        related_name="learning_roadmap",
+    )
+    skill_gaps_json = models.JSONField(default=list)
+    roadmap_json = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"LearningRoadmap for Session {self.session_id}"

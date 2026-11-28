@@ -14,6 +14,7 @@ from .views.resume_views import (
     ResumeDetailAPIView,
     ResumeListCreateAPIView,
 )
+from .views.roadmap_views import SessionLearningRoadmapAPIView
 from .views.session_views import (
     SessionAdaptiveAnswerSubmitAPIView,
     SessionAdaptiveCreateAPIView,
@@ -60,6 +61,7 @@ urlpatterns = [
     path("sessions/<int:pk>/adaptive/skip/", SessionAdaptiveQuestionSkipAPIView.as_view(), name="session_adaptive_question_skip"),
     path("sessions/<int:pk>/end/", SessionEndAPIView.as_view(), name="session_end"),
     path("sessions/<int:pk>/summary/", SessionSummaryAPIView.as_view(), name="session_summary"),
+    path("sessions/<int:pk>/learning-roadmap/", SessionLearningRoadmapAPIView.as_view(), name="session_learning_roadmap"),
     path("sessions/<int:pk>/report/", SessionReportDownloadAPIView.as_view(), name="session_report_download"),
     path("sessions/<int:pk>/video/frame/", SessionVideoFrameAPIView.as_view(), name="session_video_frame"),
     path("sessions/<int:pk>/video/metrics/", SessionVideoMetricsAPIView.as_view(), name="session_video_metrics"),
