@@ -206,87 +206,29 @@ Return ONLY a valid JSON array of objects in this exact format:
 """
 
 def _get_groq_api_key() -> str:
-    key = os.getenv("GROQ_API_KEY", "")
-    if not key:
-        try:
-            from django.conf import settings
-            key = getattr(settings, "GROQ_API_KEY", "")
-        except Exception:
-            pass
-    return key or GROQ_API_KEY
+    from .services.groq_client import load_groq_api_keys
+
+    keys = load_groq_api_keys()
+    if keys:
+        return keys[0]
+    return GROQ_API_KEY
+
 
 def _get_groq_model() -> str:
-    try:
-        from django.conf import settings
-        model_name = getattr(settings, "GROQ_MODEL", "")
-        if model_name:
-            return str(model_name).strip()
-    except Exception:
-        pass
-    return os.getenv("GROQ_MODEL", GROQ_MODEL)
+    from .services.groq_client import get_primary_model
+
+    return get_primary_model()
 
 
 def _call_groq_chat(prompt: str, model: Optional[str] = None, temperature: float = 0.15, max_tokens: int = 2200) -> str:
-    api_key = _get_groq_api_key()
-    if not api_key:
-        raise RuntimeError("GROQ_API_KEY not set")
-    url = f"{GROQ_BASE}/chat/completions"
-    body = {
-        "model": model or _get_groq_model(),
-        "messages": [
-            {"role": "system", "content": "You are an interview question generator."},
-            {"role": "user", "content": prompt}
-        ],
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "top_p": 0.95,
-    }
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    from .services.groq_client import groq_chat_completion
 
-    last_exc = None
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            logger.info("Groq call attempt %s model=%s", attempt, body["model"])
-            resp = requests.post(url, headers=headers, json=body, timeout=CALL_TIMEOUT)
-            status = getattr(resp, "status_code", None)
-            body_len = len(resp.text or "")
-            logger.info("Groq status %s (len=%s)", status, body_len)
-
-            if status != 200:
-                raise RuntimeError(f"Groq API returned HTTP status {status}")
-
-            # try to extract content in common shapes
-            try:
-                data = resp.json()
-            except Exception:
-                data = None
-
-            content = None
-            if data and "choices" in data and data["choices"]:
-                ch = data["choices"][0]
-                message = ch.get("message") or ch
-                if isinstance(message, dict):
-                    content = message.get("content") or message.get("text")
-                else:
-                    content = str(message)
-            elif data and "output" in data:
-                try:
-                    content = data["output"][0]["content"][0]["text"]
-                except Exception:
-                    content = None
-            elif data:
-                content = None
-            else:
-                content = None
-
-            if not content:
-                raise RuntimeError("Empty content returned by Groq")
-            return content
-        except Exception as e:
-            last_exc = e
-            logger.exception("Groq call failed (attempt %s): %s", attempt, e)
-            time.sleep(RETRY_BACKOFF * attempt)
-    raise last_exc or RuntimeError("Groq call failed after retries")
+    return groq_chat_completion(
+        prompt,
+        model=model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
 
 
 def _extract_json_array_from_text(text: str) -> List[Dict]:
